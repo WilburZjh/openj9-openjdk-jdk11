@@ -34,6 +34,7 @@ package openj9.internal.criu;
 
 import java.io.*;
 import java.lang.reflect.Method;
+import java.lang.System;
 import java.net.*;
 import java.security.*;
 import java.util.Arrays;
@@ -132,9 +133,7 @@ public final class NativePRNG extends SecureRandomSpi {
     // get pseudo random bytes
     @Override
     protected void engineNextBytes(byte[] bytes) {
-        int len = bytes.length;
-        byte[] b = INSTANCE.implGenerateSeed(len);
-        System.arraycopy(b, 0, bytes, 0, len);
+        INSTANCE.implNextBytes(bytes);
     }
 
     // get true random bytes
@@ -143,10 +142,24 @@ public final class NativePRNG extends SecureRandomSpi {
         return INSTANCE.implGenerateSeed(numBytes);
     }
 
+    static void clearRNGBuffers() {
+        INSTANCE.clearRNGBuffers();
+    }
+
     /**
      * Nested class doing the actual work. Singleton, see INSTANCE above.
      */
     private static final class RandomIO {
+
+        // we buffer data we read from the "next" file for efficiency,
+        // but we limit the lifetime to avoid using stale bits
+        // lifetime in ms, currently 100 ms (0.1 s)
+        private static final long MAX_BUFFER_TIME = 100;
+
+        // size of the "next" buffer
+        private static final int MAX_BUFFER_SIZE = 65536;
+        private static final int MIN_BUFFER_SIZE = 32;
+        private int bufferSize = 256;
 
         // Holder for the seedFile.  Used if we ever add seed material.
         private File seedFile;
@@ -157,6 +170,28 @@ public final class NativePRNG extends SecureRandomSpi {
 
         // flag indicating if we have tried to open seedOut yet
         private boolean seedOutInitialized;
+
+        // buffer for next bits
+        private byte[] nextBuffer;
+
+        // number of bytes left in nextBuffer
+        private int buffered;
+
+        // time we read the data into the nextBuffer
+        private long lastRead;
+
+        // Count for the number of buffer size changes requests
+        // Positive value in increase size, negative to lower it.
+        private int change_buffer = 0;
+
+        // Request limit to trigger an increase in nextBuffer size
+        private static final int REQ_LIMIT_INC = 1000;
+
+        // Request limit to trigger a decrease in nextBuffer size
+        private static final int REQ_LIMIT_DEC = -100;
+
+        // mutex lock for nextBytes()
+        private final Object LOCK_GET_BYTES = new Object();
 
         // mutex lock for generateSeed()
         private final Object LOCK_GET_SEED = new Object();
@@ -181,6 +216,7 @@ public final class NativePRNG extends SecureRandomSpi {
             }
             this.seedIn = seedStream;
             this.nextIn = nextStream;
+            this.nextBuffer = new byte[bufferSize];
         }
 
         // Read data.length bytes from in.
@@ -218,7 +254,6 @@ public final class NativePRNG extends SecureRandomSpi {
 
         // supply random bytes to the OS
         // write to "seed" if possible
-        // always add the seed to our mixing random
         private void implSetSeed(byte[] seed) {
             synchronized (LOCK_SET_SEED) {
                 if (seedOutInitialized == false) {
@@ -245,5 +280,92 @@ public final class NativePRNG extends SecureRandomSpi {
                 }
             }
         }
+
+        // ensure that there is at least one valid byte in the buffer
+        // if not, read new bytes
+        private void ensureBufferValid() throws IOException {
+            long time = System.currentTimeMillis();
+            int new_buffer_size = 0;
+
+            // Check if buffer has bytes available that are not too old
+            if (buffered > 0) {
+                if (time - lastRead < MAX_BUFFER_TIME) {
+                    return;
+                } else {
+                    // byte is old, so subtract from counter to shrink buffer
+                    change_buffer--;
+                }
+            } else {
+                // No bytes available, so add to count to increase buffer
+                change_buffer++;
+            }
+
+            // If counter has it a limit, increase or decrease size
+            if (change_buffer > REQ_LIMIT_INC) {
+                new_buffer_size = nextBuffer.length * 2;
+            } else if (change_buffer < REQ_LIMIT_DEC) {
+                new_buffer_size = nextBuffer.length / 2;
+            }
+
+            // If buffer size is to be changed, replace nextBuffer.
+            if (new_buffer_size > 0) {
+                if (new_buffer_size <= MAX_BUFFER_SIZE &&
+                        new_buffer_size >= MIN_BUFFER_SIZE) {
+                    nextBuffer = new byte[new_buffer_size];
+                    if (debug != null) {
+                        debug.println("Buffer size changed to " +
+                                new_buffer_size);
+                    }
+                } else {
+                    if (debug != null) {
+                        debug.println("Buffer reached limit: " +
+                                nextBuffer.length);
+                    }
+                }
+                change_buffer = 0;
+            }
+
+            // Load fresh random bytes into nextBuffer
+            lastRead = time;
+            readFully(nextIn, nextBuffer);
+            buffered = nextBuffer.length;
+        }
+
+        private void implNextBytes(byte[] data) {
+                try {
+                    int data_len = data.length;
+                    int ofs = 0;
+                    int len;
+                    int buf_pos;
+
+                    while (data_len > 0) {
+                        synchronized (LOCK_GET_BYTES) {
+                            ensureBufferValid();
+                            buf_pos = nextBuffer.length - buffered;
+                            if (data_len > buffered) {
+                                len = buffered;
+                                buffered = 0;
+                            } else {
+                                len = data_len;
+                                buffered -= len;
+                            }
+
+                            System.arraycopy(nextBuffer, buf_pos, data, ofs, len);
+                        }
+
+                        ofs += len;
+                        data_len -= len;
+                    }
+                } catch (IOException e){
+                    throw new ProviderException("nextBytes() failed", e);
+                }
+        }
+
+	private void clearRNGBuffers() {
+            if (this.nextBuffer != null) {
+                Arrays.fill(this.nextBuffer, (byte) 0x00);
+                this.nextBuffer = null;
+            }
+	}
     }
 }
