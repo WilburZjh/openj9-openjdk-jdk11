@@ -22,6 +22,11 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+/*
+ * ===========================================================================
+ * (c) Copyright IBM Corp. 2022, 2023 All Rights Reserved
+ * ===========================================================================
+ */
 
 package sun.security.pkcs12;
 
@@ -76,6 +81,8 @@ import sun.security.pkcs.EncryptedPrivateKeyInfo;
 import sun.security.provider.JavaKeyStore.JKS;
 import sun.security.util.KeyStoreDelegator;
 
+import openj9.internal.security.RestrictedSecurityConfigurator;
+import openj9.internal.security.RestrictedSecurityProperties;
 
 /**
  * This class provides the keystore implementation referred to as "PKCS12".
@@ -828,7 +835,15 @@ public final class PKCS12KeyStore extends KeyStoreSpi {
             }
             if (params != null) {
                 if (algorithm.equals(pbes2_OID)) {
-                    algParams = AlgorithmParameters.getInstance("PBES2");
+                    if (RestrictedSecurityConfigurator.isFIPSSupportPKCS12()) {
+                        algParams = AlgorithmParameters
+                                .getInstance(RestrictedSecurityProperties
+                                .getInstance().getPBES2AlgParameters());
+                        System.out.println("TAO DEBUG - PKCS12KeyStore - parseAlgParameters - AlgorithmParameters: "
+                                + RestrictedSecurityProperties.getInstance().getPBES2AlgParameters());
+                    } else {
+                        algParams = AlgorithmParameters.getInstance("PBES2");
+                    }
                 } else {
                     algParams = AlgorithmParameters.getInstance("PBE");
                 }
@@ -850,7 +865,16 @@ public final class PKCS12KeyStore extends KeyStoreSpi {
 
         try {
             PBEKeySpec keySpec = new PBEKeySpec(password);
-            SecretKeyFactory skFac = SecretKeyFactory.getInstance("PBE");
+            SecretKeyFactory skFac;
+            if (RestrictedSecurityConfigurator.isFIPSSupportPKCS12()) {
+                skFac = SecretKeyFactory
+                        .getInstance(RestrictedSecurityProperties
+                        .getInstance().getPBES2SecretKeyFactory());
+                System.out.println("TAO DEBUG - PKCS12KeyStore - getPBEKey - SecretKeyFactory: "
+                        + RestrictedSecurityProperties.getInstance().getPBES2SecretKeyFactory());
+            } else {
+                skFac = SecretKeyFactory.getInstance("PBE");
+            }
             skey = skFac.generateSecret(keySpec);
             keySpec.clearPassword();
         } catch (Exception e) {
@@ -2106,10 +2130,14 @@ public final class PKCS12KeyStore extends KeyStoreSpi {
                     RetryWithZero.run(pass -> {
                         // Use JCE
                         SecretKey skey = getPBEKey(pass);
+                        System.out.println("TAO DEBUG - PKCS12KeyStore - engineLoad - 1");
                         Cipher cipher = Cipher.getInstance(
                                 mapPBEParamsToAlgorithm(algOid, algParams));
+                        System.out.println("TAO DEBUG - PKCS12KeyStore - engineLoad - 2");
                         cipher.init(Cipher.DECRYPT_MODE, skey, algParams);
+                        System.out.println("TAO DEBUG - PKCS12KeyStore - engineLoad - 3");
                         loadSafeContents(new DerInputStream(cipher.doFinal(rawData)));
+                        System.out.println("TAO DEBUG - PKCS12KeyStore - engineLoad - 4");
                         return null;
                     }, password);
                 } catch (Exception e) {

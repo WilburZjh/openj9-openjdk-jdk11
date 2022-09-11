@@ -403,4 +403,13 @@ public class NativeCrypto {
                                       int id,
                                       int hashAlgorithm);
 
+    public final native int PBES2Derive(byte[] password,
+                                      int passwordLength,
+                                      byte[] salt,
+                                      int saltLength,
+                                      int iterations,
+                                      int hashAlgorithm,
+                                      int keyLength,
+                                      byte[] key);
+
 }

@@ -47,7 +47,7 @@
 
 /*
  * ===========================================================================
- * (c) Copyright IBM Corp. 2022, 2022 All Rights Reserved
+ * (c) Copyright IBM Corp. 2022, 2023 All Rights Reserved
  * ===========================================================================
  */
 
@@ -145,9 +145,21 @@ public class PKCS11 {
         new HashMap<String,PKCS11>();
 
     static boolean isKey(CK_ATTRIBUTE[] attrs) {
+        long keyClass = 0, keyType = 0;
         for (CK_ATTRIBUTE attr : attrs) {
+            if (attr.type == CKA_CLASS) {
+                keyClass = attr.getLong();
+            }
+            if (attr.type == CKA_KEY_TYPE) {
+                keyType = attr.getLong();
+            }
             if ((attr.type == CKA_CLASS) && (attr.getLong() == CKO_SECRET_KEY)) {
                 return true;
+            }
+            if ((attr.type == CKA_CLASS) && (attr.getLong() == CKO_PRIVATE_KEY)) {
+                if(keyType == CKK_RSA || keyType == CKK_EC) {
+                    return true;
+                }
             }
         }
         return false;
@@ -155,7 +167,7 @@ public class PKCS11 {
 
     // This is the SunPKCS11 provider instance
     // there can only be a single PKCS11 provider in
-    // FIPS mode.
+    // restricted security FIPS mode.
     private static SunPKCS11 mysunpkcs11;
 
     private static final class InnerPKCS11 extends PKCS11 implements Consumer<SunPKCS11> {
@@ -163,15 +175,15 @@ public class PKCS11 {
             super(pkcs11ModulePath, functionListName);
         }
 
-        // Set PKCS11 instance to FIPS mode, called by SunPKCS11 provider.
+        // Set PKCS11 instance to restricted security FIPS mode, called by SunPKCS11 provider.
         @Override
         public void accept(SunPKCS11 sunpkcs11) {
             mysunpkcs11 = sunpkcs11;
         }
 
-        // Overriding the JNI method C_CreateObject so that first check if FIPS mode is on and the object is a
-        // secret key, in which case invoke the importKey method in SunPKCS11 provider to import the secret key
-        // into the PKCS11 device.
+        // Overriding the JNI method C_CreateObject so that first check if restricted security FIPS mode is on
+        // and the object is a secret key, in which case invoke the importKey method in SunPKCS11 provider to
+        // import the secret key into the PKCS11 device.
         public synchronized long C_CreateObject(long hSession, CK_ATTRIBUTE[] pTemplate) throws PKCS11Exception {
             if ((mysunpkcs11 != null) && isKey(pTemplate)) {
                 try {

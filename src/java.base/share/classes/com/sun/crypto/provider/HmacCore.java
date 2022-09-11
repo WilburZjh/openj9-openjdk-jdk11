@@ -22,6 +22,11 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+/*
+ * ===========================================================================
+ * (c) Copyright IBM Corp. 2022, 2023 All Rights Reserved
+ * ===========================================================================
+ */
 
 package com.sun.crypto.provider;
 
@@ -33,6 +38,8 @@ import javax.crypto.MacSpi;
 import javax.crypto.SecretKey;
 import java.security.*;
 import java.security.spec.*;
+
+import openj9.internal.security.RestrictedSecurityConfigurator;
 
 /**
  * This class constitutes the core of HMAC-<MD> algorithms, where
@@ -58,7 +65,10 @@ abstract class HmacCore extends MacSpi implements Cloneable {
      */
     HmacCore(String digestAlgo, int bl) throws NoSuchAlgorithmException {
         MessageDigest md = MessageDigest.getInstance(digestAlgo);
-        if (!(md instanceof Cloneable)) {
+        System.out.println("TAO DEBUG - HmacCore - 1");
+        if (!(md instanceof Cloneable) && !RestrictedSecurityConfigurator.isFIPSSupportPKCS12()) {
+            System.out.println("TAO DEBUG - HmacCore - 2: " + md.toString());
+        //if (!(md instanceof Cloneable)) {
             // use SUN provider if the most preferred one does not support
             // cloning
             Provider sun = Security.getProvider("SUN");
