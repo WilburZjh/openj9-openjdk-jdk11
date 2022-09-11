@@ -23,6 +23,12 @@
  * questions.
  */
 
+/*
+ * ===========================================================================
+ * (c) Copyright IBM Corp. 2022, 2023 All Rights Reserved
+ * ===========================================================================
+ */
+
 package java.util;
 
 import java.io.BufferedReader;
@@ -56,6 +62,9 @@ import jdk.internal.module.ServicesCatalog;
 import jdk.internal.module.ServicesCatalog.ServiceProvider;
 import jdk.internal.reflect.CallerSensitive;
 import jdk.internal.reflect.Reflection;
+
+import openj9.internal.security.RestrictedSecurityConfigurator;
+import openj9.internal.security.RestrictedSecurityProperties;
 
 /**
  * A facility to load implementations of a service.
@@ -873,6 +882,15 @@ public final class ServiceLoader<S>
             fail(service, clazz + " is not public");
         }
 
+        // If the restricted security mode is enabled.
+        if (RestrictedSecurityConfigurator.isEnabled()) {
+            // If the provider is NOT allowed in restricted security mode.
+            if (!RestrictedSecurityProperties.getInstance().isProviderAllowed(clazz)) {
+                // Then skip it.
+                return null;
+            }
+        }
+
         // if provider in explicit module then check for static factory method
         if (inExplicitModule(clazz)) {
             Method factoryMethod = findStaticProviderMethod(clazz);
@@ -1228,6 +1246,14 @@ public final class ServiceLoader<S>
                     }
 
                     if (service.isAssignableFrom(clazz)) {
+                        // If the restricted security mode is enabled.
+                        if (RestrictedSecurityConfigurator.isEnabled()) {
+                            // If the provider is NOT allowed in restricted security mode.
+                            if (!RestrictedSecurityProperties.getInstance().isProviderAllowed(clazz)) {
+                                // Then skip it.
+                                continue;
+                            }
+                        }
                         Class<? extends S> type = (Class<? extends S>) clazz;
                         Constructor<? extends S> ctor
                             = (Constructor<? extends S>)getConstructor(clazz);

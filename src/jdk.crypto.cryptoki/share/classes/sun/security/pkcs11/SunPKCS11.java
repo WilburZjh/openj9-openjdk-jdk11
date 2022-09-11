@@ -55,7 +55,7 @@ import javax.security.auth.callback.PasswordCallback;
 import com.sun.crypto.provider.ChaCha20Poly1305Parameters;
 
 import jdk.internal.misc.InnocuousThread;
-import openj9.internal.security.FIPSConfigurator;
+import openj9.internal.security.RestrictedSecurityConfigurator;
 import sun.security.util.Debug;
 import sun.security.util.ResourcesMgr;
 import static sun.security.util.SecurityConstants.PROVIDER_VER;
@@ -110,7 +110,7 @@ public final class SunPKCS11 extends AuthProvider {
 
     // This is the SunPKCS11 provider instance
     // there can only be a single PKCS11 provider in
-    // FIPS mode.
+    // restricted security FIPS mode.
     static SunPKCS11 mysunpkcs11;
 
     Token getToken() {
@@ -432,11 +432,11 @@ public final class SunPKCS11 extends AuthProvider {
                 nssModule.setProvider(this);
             }
 
-            // When FIPS mode is enabled, configure p11 object to FIPS mode
-            // and pass the parent object so it can callback.
-            if (FIPSConfigurator.enableFips()) {
+            // When restricted security FIPS mode is enabled, configure p11 object
+            // to FIPS mode and pass the parent object so it can callback.
+            if (RestrictedSecurityConfigurator.isFIPSEnabled()) {
                 if (debug != null) {
-                    System.out.println("FIPS mode in SunPKCS11");
+                    debug.println("Restricted security FIPS mode in SunPKCS11");
                 }
 
                 @SuppressWarnings("unchecked")
