@@ -160,6 +160,13 @@ public final class SunEntries {
             add(p, "CertPathValidator", "PKIX",
                     "sun.security.provider.certpath.PKIXCertPathValidator",
                     null, attrs);
+
+            /*
+             * PKCS#12 keystore
+             */
+            add(p, "KeyStore", "PKCS12",
+                    "sun.security.pkcs12.PKCS12KeyStore$DualFormatPKCS12",
+                    null, null);
         } else {
             /*
              * SecureRandom engines
@@ -325,9 +332,6 @@ public final class SunEntries {
             /*
              * KeyStore
              */
-            add(p, "KeyStore", "PKCS12",
-                    "sun.security.pkcs12.PKCS12KeyStore$DualFormatPKCS12",
-                    null, null);
             add(p, "KeyStore", "JKS",
                     "sun.security.provider.JavaKeyStore$DualFormatJKS",
                     null, attrs);
