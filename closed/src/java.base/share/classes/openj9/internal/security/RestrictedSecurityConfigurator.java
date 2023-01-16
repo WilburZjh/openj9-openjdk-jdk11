@@ -52,6 +52,7 @@ public final class RestrictedSecurityConfigurator {
     private static final String userSecuritySetting;
 
     private static boolean securityEnabled;
+    private static boolean FIPSSupportPKCS12;
 
     private static int userSecurityNum;
     private static boolean userSecurityTrace;
@@ -102,6 +103,15 @@ public final class RestrictedSecurityConfigurator {
      */
     public static boolean isFIPSEnabled() {
         return securityEnabled && (userSecurityNum == 1);
+    }
+
+    /**
+     * FIPS policy specific flag. By default, the PKCS12 keystore is supported in FIPS.
+     * 
+     * @return true if PKCS12 keystore is supported in FIPS
+     */
+    public static boolean isFIPSSupportPKCS12() {
+        return FIPSSupportPKCS12;
     }
 
     /**
@@ -173,6 +183,10 @@ public final class RestrictedSecurityConfigurator {
                 }
 
                 securityEnabled = true;
+
+                // After the restricted security policy loaded.
+                // Check if loading PKCS12 keystore is supported in NSS FIPS.
+                FIPSSupportPKCS12 = restricts.isFIPSSupportPKCS12();
             }
 
         } catch (Exception e) {

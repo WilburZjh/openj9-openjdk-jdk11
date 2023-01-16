@@ -136,6 +136,7 @@ typedef int OSSL_EC_KEY_check_key_t(const EC_KEY *);
 typedef int EC_set_public_key_t(EC_KEY *, BIGNUM *, BIGNUM *, int);
 
 typedef int OSSL_PKCS12_key_gen_t(const char *, int, unsigned char *, int, int, int, int, unsigned char *, const EVP_MD *);
+typedef int OSSL_PKCS5_PBKDF2_HMAC_t(const char *, int, const unsigned char *, int, int, const EVP_MD *, int, unsigned char *);
 
 typedef int OSSL_CRYPTO_num_locks_t();
 typedef void OSSL_CRYPTO_THREADID_set_numeric_t(CRYPTO_THREADID *id, unsigned long val);
@@ -240,6 +241,9 @@ EC_set_public_key_t* EC_set_public_key;
 
 /* Define pointers for OpenSSL functions to handle PBE algorithm. */
 OSSL_PKCS12_key_gen_t* OSSL_PKCS12_key_gen;
+
+/* Define pointers for OpenSSL functions to handle PBES2 algorithm. */
+OSSL_PKCS5_PBKDF2_HMAC_t* OSSL_PKCS5_PBKDF2_HMAC;
 
 /* Structure for OpenSSL Digest context. */
 typedef struct OpenSSLMDContext {
@@ -470,6 +474,9 @@ JNIEXPORT jint JNICALL Java_jdk_crypto_jniprovider_NativeCrypto_loadCrypto
     /* Load the functions symbols for OpenSSL PBE algorithm. */
     OSSL_PKCS12_key_gen = (OSSL_PKCS12_key_gen_t*)find_crypto_symbol(crypto_library, "PKCS12_key_gen_uni");
 
+    /* Load the functions symbols for OpenSSL PBES2 algorithm. */
+    OSSL_PKCS5_PBKDF2_HMAC = (OSSL_PKCS5_PBKDF2_HMAC_t*)find_crypto_symbol(crypto_library, "PKCS5_PBKDF2_HMAC");
+
     if ((NULL == OSSL_error_string) ||
         (NULL == OSSL_error_string_n) ||
         (NULL == OSSL_get_error) ||
@@ -529,6 +536,7 @@ JNIEXPORT jint JNICALL Java_jdk_crypto_jniprovider_NativeCrypto_loadCrypto
         (NULL == OSSL_EC_KEY_set_public_key) ||
         (NULL == OSSL_EC_KEY_check_key) ||
         (NULL == OSSL_PKCS12_key_gen) ||
+        (NULL == OSSL_PKCS5_PBKDF2_HMAC) ||
         /* Check symbols that are only available in OpenSSL 1.1.x and above */
         ((1 == ossl_ver) && ((NULL == OSSL_chacha20) || (NULL == OSSL_chacha20_poly1305))) ||
         /* Check symbols that are only available in OpenSSL 1.0.x and above */
@@ -2852,6 +2860,73 @@ Java_jdk_crypto_jniprovider_NativeCrypto_PBEDerive
     }
 
     if (1 == (*OSSL_PKCS12_key_gen)(nativePassword, passwordLength, nativeSalt, saltLength, id, iterations, n, nativeKey, digestAlgorithm)) {
+        ret = 0;
+    }
+
+cleanup:
+    if (NULL != nativePassword) {
+        (*env)->ReleasePrimitiveArrayCritical(env, password, nativePassword, JNI_ABORT);
+    }
+    if (NULL != nativeSalt) {
+        (*env)->ReleasePrimitiveArrayCritical(env, salt, nativeSalt, JNI_ABORT);
+    }
+    if (NULL != nativeKey) {
+        (*env)->ReleasePrimitiveArrayCritical(env, key, nativeKey, JNI_ABORT);
+    }
+
+    return ret;
+}
+
+/* Password-Based Encryption Standard v2.0
+ *
+ * Class:     jdk_crypto_jniprovider_NativeCrypto
+ * Method:    PBES2Derive
+ * Signature: (J[BI[BI[BIIII)I
+ */
+JNIEXPORT jint JNICALL
+Java_jdk_crypto_jniprovider_NativeCrypto_PBES2Derive
+    (JNIEnv *env, jclass obj, jbyteArray password, jint passwordLength, jbyteArray salt, jint saltLength, jint iterations, jint hashAlgorithm, jint keyLength, jbyteArray key)
+{
+    const EVP_MD *digestAlgorithm = NULL;
+    char *nativePassword = NULL;
+    unsigned char *nativeSalt = NULL;
+    unsigned char *nativeKey = NULL;
+    jint ret = -1;
+
+    switch (hashAlgorithm) {
+        case jdk_crypto_jniprovider_NativeCrypto_SHA1_160:
+            digestAlgorithm = (*OSSL_sha1)();
+            break;
+        case jdk_crypto_jniprovider_NativeCrypto_SHA2_224:
+            digestAlgorithm = (*OSSL_sha224)();
+            break;
+        case jdk_crypto_jniprovider_NativeCrypto_SHA2_256:
+            digestAlgorithm = (*OSSL_sha256)();
+            break;
+        case jdk_crypto_jniprovider_NativeCrypto_SHA5_384:
+            digestAlgorithm = (*OSSL_sha384)();
+            break;
+        case jdk_crypto_jniprovider_NativeCrypto_SHA5_512:
+            digestAlgorithm = (*OSSL_sha512)();
+            break;
+        default:
+            goto cleanup;
+    }
+
+    nativePassword = (char*)((*env)->GetPrimitiveArrayCritical(env, password, 0));
+    if (NULL == nativePassword) {
+        goto cleanup;
+    }
+    nativeSalt = (unsigned char*)((*env)->GetPrimitiveArrayCritical(env, salt, 0));
+    if (NULL == nativeSalt) {
+        goto cleanup;
+    }
+    nativeKey = (unsigned char*)((*env)->GetPrimitiveArrayCritical(env, key, 0));
+    if (NULL == nativeKey) {
+        goto cleanup;
+    }
+
+    if (1 == (*OSSL_PKCS5_PBKDF2_HMAC)(nativePassword, passwordLength, nativeSalt, saltLength, iterations, digestAlgorithm, keyLength, nativeKey)) {
         ret = 0;
     }
 
