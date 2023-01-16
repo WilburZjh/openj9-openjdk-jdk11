@@ -78,6 +78,10 @@ public final class RestrictedSecurityProperties {
     // The java.security properties.
     private final Properties securityProps;
 
+    // PKCS12 PBE support
+    private static String PBES2SecretKeyFactory;
+    private static String PBES2AlgParameters;
+
     /**
      *
      * @param num   the restricted security setting number
@@ -635,6 +639,59 @@ public final class RestrictedSecurityProperties {
     }
 
     /**
+     * Check if the PKCS12 keystore is supported in FIPS mode. By default,
+     * the PKCS12 keystore is supported in FIPS.
+     *
+     * @return true if PKCS12 keystore is supported in FIPS mode
+     */
+    protected boolean isFIPSSupportPKCS12() {
+        if (debug != null) {
+            debug.println("Check the support of loading PKCS12 keystore in FIPS mode.");
+        }
+
+        // Only FIPS need to support PKCS12 keystore.
+        // By default, PKCS12 keystore support enabled in provider SUN constraints.
+        if (userSecurityNum != 1) {
+            if (debug != null) {
+                debug.println("Not FIPS policy, no need to check the support of loading PKCS12 keystore.");
+            }
+            return false;
+        }
+
+        // Check if the PKCS12 keystore support is enabled in provider SUN's constraints.
+        for (Constraint constraintSUN : providerConstraints.get("SUN")) {
+            if ("KeyStore".equalsIgnoreCase(constraintSUN.type) && "PKCS12".equalsIgnoreCase(constraintSUN.algorithm)) {
+                // Get PBES2 AlgorithmParameters and SecretKeyFactory from SunJCE constraints
+                for (Constraint constraintSunJCE : providerConstraints.get("SunJCE")) {
+                    String type = constraintSunJCE.type;
+                    String algorithm = constraintSunJCE.algorithm;
+                    if ("AlgorithmParameters".equalsIgnoreCase(type) && algorithm.startsWith("PBE")) {
+                        PBES2AlgParameters = algorithm;
+                    } else if ("SecretKeyFactory".equalsIgnoreCase(type) && algorithm.startsWith("PBE")) {
+                        PBES2SecretKeyFactory = algorithm;
+                    }
+                }
+                if (isNullOrBlank(PBES2AlgParameters) || isNullOrBlank(PBES2SecretKeyFactory)) {
+                    new RuntimeException(
+                            "The service of loading PKCS12 keystore in FIPS mode is enabled " +
+                            "in provider SUN. But the AlgorithmParameters and SecretKeyFactory " +
+                            "settings are empty in provider SunJCE's constraints.").printStackTrace();
+                    System.exit(1);
+                }
+                if (debug != null) {
+                    debug.println("Loading PKCS12 keystore is supported in FIPS mode.");
+                }
+                return true;
+            }
+        }
+
+        if (debug != null) {
+            debug.println("Loading PKCS12 keystore in FIPS mode is not enabled in provider SUN's constraints.");
+        }
+        return false;
+    }
+
+    /**
      * Check if the input string is null and empty.
      *
      * @param string the input string
@@ -765,5 +822,13 @@ public final class RestrictedSecurityProperties {
 
     public String getJdkSecureRandomAlgorithm() {
         return jdkSecureRandomAlgorithm;
+    }
+
+    public String getPBES2SecretKeyFactory() {
+        return PBES2SecretKeyFactory;
+    }
+
+    public String getPBES2AlgParameters() {
+        return PBES2AlgParameters;
     }
 }
