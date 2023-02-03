@@ -31,6 +31,7 @@ import java.security.AccessController;
 import java.security.PrivilegedAction;
 
 import sun.security.util.Debug;
+import jdk.crypto.jniprovider.NativeCrypto;
 
 /**
  * Configures the security providers when in FIPS mode.
@@ -43,6 +44,8 @@ public final class FIPSConfigurator {
     private static final boolean userEnabledFIPS;
     private static final boolean isFIPSSupported;
     private static final boolean shouldEnableFIPS;
+
+    private static final NativeCrypto nativeCrypto = NativeCrypto.getNativeCrypto();
 
     static {
         String[] props = AccessController.doPrivileged(
@@ -74,6 +77,10 @@ public final class FIPSConfigurator {
         return shouldEnableFIPS;
     }
 
+    public static boolean isOpenSSLSupportFIPS() {
+        return nativeCrypto.FIPSMode() != 0;
+    }
+
     /**
      * Remove the security providers and only add the FIPS security providers.
      *
@@ -86,6 +93,16 @@ public final class FIPSConfigurator {
         // Check if FIPS is supported on this platform.
         if (userEnabledFIPS && !isFIPSSupported) {
             throw new RuntimeException("FIPS is not supported on this platform.");
+        }
+
+        if (!isOpenSSLSupportFIPS()) {
+            if (debug != null) {
+                    debug.println("OpenSSL is not in FIPS mode");
+                }
+        } else {
+            if (debug != null) {
+                    debug.println("OpenSSL is enabled in FIPS mode");
+                }
         }
 
         try {

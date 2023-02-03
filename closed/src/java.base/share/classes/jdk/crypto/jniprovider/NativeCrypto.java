@@ -402,5 +402,6 @@ public class NativeCrypto {
                                       int n,
                                       int id,
                                       int hashAlgorithm);
-
+    /* Native FIPS interfaces */
+    public final native int FIPSMode();
 }
