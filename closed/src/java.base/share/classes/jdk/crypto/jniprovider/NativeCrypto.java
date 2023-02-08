@@ -70,7 +70,6 @@ public class NativeCrypto {
                     }
                     // Return that ossl_ver is -1 (default set above)
                 }
-
                 return ossl_ver;
             });
 
@@ -412,4 +411,6 @@ public class NativeCrypto {
                                       int keyLength,
                                       byte[] key);
 
+    /* Native FIPS interfaces */
+    public final native int FIPSMode();
 }

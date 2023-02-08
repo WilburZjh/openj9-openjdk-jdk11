@@ -398,6 +398,7 @@ abstract class P11Key implements Key, Length {
                     // Attempt failed, create a P11PrivateKey object.
                 }
             }
+        } 
         if((SunPKCS11.mysunpkcs11 != null) && "EC".equals(algorithm)) {
             if (attributes[0].getBoolean() || attributes[1].getBoolean() || (attributes[2].getBoolean() == false)) {
                 try {
