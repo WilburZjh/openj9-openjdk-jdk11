@@ -49,6 +49,7 @@ import javax.crypto.spec.PBEKeySpec;
 import jdk.crypto.jniprovider.NativeCrypto;
 import jdk.internal.ref.CleanerFactory;
 
+
 import openj9.internal.security.RestrictedSecurityConfigurator;
 
 /**
@@ -71,7 +72,7 @@ final class PBKDF2KeyImpl implements javax.crypto.interfaces.PBEKey {
      * PBE implementation.
      */
     private static final boolean useNativePBES2 = NativeCrypto.isAlgorithmEnabled("jdk.nativePBES2", "PBKDF2KeyImpl");
-
+    
     private char[] passwd;
     private byte[] salt;
     private int iterCount;
@@ -186,7 +187,15 @@ final class PBKDF2KeyImpl implements javax.crypto.interfaces.PBEKey {
             }
             if (hashSupported) {
                 if (nativeCrypto.PBES2Derive(password, password.length, salt, salt.length, iterCount, hashIndex, keyLength, key) != -1) {
-                    return key;
+                    /*
+                     * The return value is 0 indicate that the FIPS mode of operation is not enabled.
+                     * Effectively, any non-zero value indicates FIPS mode.
+                     */
+                    if (nativeCrypto.FIPSMode() != 0) {
+                        return key;
+                    } else {
+                        System.err.println("FIPS module is not enabled in OpenSSL, please enable. ");
+                    }
                 } else if (nativeCryptTrace) {
                     System.err.println("Native PBE derive failed for algorithm " + hashAlgo + ", using Java implementation.");
                 }

@@ -531,7 +531,7 @@ public final class SunPKCS11 extends AuthProvider {
         }
     }
 
-    long importKey(long hSession, CK_ATTRIBUTE[] attributes) throws PKCS11Exception {
+    public long importKey(long hSession, CK_ATTRIBUTE[] attributes) throws PKCS11Exception {
         long unwrappedKeyId, keyClass = 0, keyType = 0;
         byte[] keyBytes = null;
         BigInteger tmp = null;

@@ -28,6 +28,7 @@
 #include <openssl/rsa.h>
 #include <openssl/ecdh.h>
 #include <openssl/pkcs12.h>
+#include <openssl/crypto.h>
 
 #include <jni.h>
 #include <stdio.h>
@@ -113,6 +114,7 @@ typedef BIGNUM* OSSL_BN_bin2bn_t (const unsigned char *, int, BIGNUM *);
 typedef void OSSL_BN_set_negative_t (BIGNUM *, int);
 typedef void OSSL_BN_free_t (BIGNUM *);
 
+typedef int OSSL_FIPS_mode_t(void);
 typedef void OSSL_EC_KEY_free_t(EC_KEY *);
 typedef int OSSL_ECDH_compute_key_t(void *, size_t, const EC_POINT *, EC_KEY *, void *(*KDF)(const void *, size_t, void *, size_t *));
 typedef const EC_POINT* OSSL_EC_KEY_get0_public_key_t(const EC_KEY *);
@@ -152,6 +154,9 @@ static void win32_locking_callback(int mode, int type, const char *file, int lin
 static void pthreads_thread_id(CRYPTO_THREADID *tid);
 static void pthreads_locking_callback(int mode, int type, const char *file, int line);
 #endif /* defined(WINDOWS) */
+
+/* Define pointers for OpenSSL functions to check if FIPS module is enabled in OpenSSL. */
+OSSL_FIPS_mode_t* OSSL_FIPS_mode;
 
 /* Define pointers for OpenSSL functions to handle Errors. */
 OSSL_error_string_n_t* OSSL_error_string_n;
@@ -346,6 +351,25 @@ JNIEXPORT jint JNICALL Java_jdk_crypto_jniprovider_NativeCrypto_loadCrypto
     if (traceEnabled) {
         fprintf(stderr, "Supported OpenSSL version: %s\n", openssl_version);
         fflush(stderr);
+    }
+
+    /* Load the FIPS_mode() function for OpenSSL 1.x version. */
+    OSSL_FIPS_mode = (OSSL_FIPS_mode_t*)find_crypto_symbol(crypto_library, "FIPS_mode");
+
+    if(0 == ossl_ver || 1 == ossl_ver) {
+        /* Check if OpenSSL is FIPS compliant. */
+        int fips_compatible_build = -1;
+
+        /*
+        * The return value is either 0 to indicate that the FIPS mode of operation is not enabled, 
+        * or the value used for the ONOFF parameter passed to an earlier successful call to FIPS_mode_set().
+        */
+        if ((fips_compatible_build = (*OSSL_FIPS_mode)()) == 0) {
+            if (traceEnabled) {
+                fprintf(stderr, "The current version of OpenSSL is not FIPS-capable.\n");
+                fflush(stderr);
+            }
+        }
     }
 
     /* Load the function symbols for OpenSSL errors. */
@@ -2942,4 +2966,17 @@ cleanup:
     }
 
     return ret;
+}
+
+/* Check if the FIPS mode is enabled in OpenSSL. 
+ *
+ * Class:     jdk_crypto_jniprovider_NativeCrypto
+ * Method:    FIPSMode
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL
+Java_jdk_crypto_jniprovider_NativeCrypto_FIPSMode
+  (JNIEnv *env, jclass obj)
+{
+     return (*OSSL_FIPS_mode)();
 }

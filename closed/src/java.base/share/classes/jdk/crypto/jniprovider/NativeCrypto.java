@@ -402,4 +402,6 @@ public class NativeCrypto {
                                       int keyLength,
                                       byte[] key);
 
+    /* Native FIPS interfaces */
+    public final native int FIPSMode();
 }
