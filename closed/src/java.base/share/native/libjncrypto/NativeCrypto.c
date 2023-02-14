@@ -115,6 +115,8 @@ typedef void OSSL_BN_set_negative_t (BIGNUM *, int);
 typedef void OSSL_BN_free_t (BIGNUM *);
 
 typedef int OSSL_FIPS_mode_t(void);
+typedef struct ossl_lib_ctx_st OSSL_LIB_CTX;
+typedef int OSSL_EVP_default_properties_is_fips_enabled_t(OSSL_LIB_CTX *);
 typedef void OSSL_EC_KEY_free_t(EC_KEY *);
 typedef int OSSL_ECDH_compute_key_t(void *, size_t, const EC_POINT *, EC_KEY *, void *(*KDF)(const void *, size_t, void *, size_t *));
 typedef const EC_POINT* OSSL_EC_KEY_get0_public_key_t(const EC_KEY *);
@@ -157,6 +159,7 @@ static void pthreads_locking_callback(int mode, int type, const char *file, int 
 
 /* Define pointers for OpenSSL functions to check if FIPS module is enabled in OpenSSL. */
 OSSL_FIPS_mode_t* OSSL_FIPS_mode;
+OSSL_EVP_default_properties_is_fips_enabled_t* OSSL_EVP_default_properties_is_fips_enabled;
 
 /* Define pointers for OpenSSL functions to handle Errors. */
 OSSL_error_string_n_t* OSSL_error_string_n;
@@ -271,6 +274,8 @@ static void printErrors(void) {
 }
 
 static void *crypto_library = NULL;
+int ossl_ver;
+int ossl_ver3 = 0;
 /*
  * Class:     jdk_crypto_jniprovider_NativeCrypto
  * Method:    loadCrypto
@@ -286,7 +291,7 @@ JNIEXPORT jint JNICALL Java_jdk_crypto_jniprovider_NativeCrypto_loadCrypto
      /* Determine the version of OpenSSL. */
     OSSL_version_t* OSSL_version;
     const char * openssl_version;
-    int ossl_ver;
+    // int ossl_ver;
 
     /* Load OpenSSL Crypto library */
     crypto_library = load_crypto_library(traceEnabled);
@@ -347,6 +352,9 @@ JNIEXPORT jint JNICALL Java_jdk_crypto_jniprovider_NativeCrypto_loadCrypto
         }
         ossl_ver = 1;
     }
+    if(0 == strncmp(openssl_version, OPENSSL_VERSION_3_X, strlen(OPENSSL_VERSION_3_X))) {
+        ossl_ver3 = 3;
+    }
 
     if (traceEnabled) {
         fprintf(stderr, "Supported OpenSSL version: %s\n", openssl_version);
@@ -356,7 +364,10 @@ JNIEXPORT jint JNICALL Java_jdk_crypto_jniprovider_NativeCrypto_loadCrypto
     /* Load the FIPS_mode() function for OpenSSL 1.x version. */
     OSSL_FIPS_mode = (OSSL_FIPS_mode_t*)find_crypto_symbol(crypto_library, "FIPS_mode");
 
-    if(0 == ossl_ver || 1 == ossl_ver) {
+    /* Load the EVP_default_properties_is_fips_enabled() function for OpenSSL 3.x version. */
+    OSSL_EVP_default_properties_is_fips_enabled = (OSSL_EVP_default_properties_is_fips_enabled_t*)find_crypto_symbol(crypto_library, "EVP_default_properties_is_fips_enabled");
+
+    if((0 == ossl_ver || 1 == ossl_ver) && (3 != ossl_ver3)) {
         /* Check if OpenSSL is FIPS compliant. */
         int fips_compatible_build = -1;
 
@@ -366,7 +377,20 @@ JNIEXPORT jint JNICALL Java_jdk_crypto_jniprovider_NativeCrypto_loadCrypto
         */
         if ((fips_compatible_build = (*OSSL_FIPS_mode)()) == 0) {
             if (traceEnabled) {
-                fprintf(stderr, "The current version of OpenSSL is not FIPS-capable.\n");
+                fprintf(stderr, "The current version of OpenSSL 1.x is not FIPS-capable.\n");
+                fflush(stderr);
+            }
+        }
+    }
+
+    if(3 == ossl_ver3) {
+        /*
+        * EVP_default_properties_is_fips_enabled() returns 1 if the 'fips=yes' default property is set for the given libctx. 
+        * Otherwise it returns 0.
+        */
+        if ((*OSSL_EVP_default_properties_is_fips_enabled)(NULL) == 0) {
+            if (traceEnabled) {
+                fprintf(stderr, "The current version of OpenSSL 3.x is not FIPS-capable.\n");
                 fflush(stderr);
             }
         }
@@ -2978,5 +3002,13 @@ JNIEXPORT jint JNICALL
 Java_jdk_crypto_jniprovider_NativeCrypto_FIPSMode
   (JNIEnv *env, jclass obj)
 {
-     return (*OSSL_FIPS_mode)();
+    if(0 == ossl_ver3) {
+        if(0 == ossl_ver || 1 == ossl_ver) {
+            return (*OSSL_FIPS_mode)();
+        } else {
+            return 0;
+        }
+    } else {
+        return (*OSSL_EVP_default_properties_is_fips_enabled)(NULL);
+    }
 }
