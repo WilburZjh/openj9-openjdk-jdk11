@@ -194,7 +194,11 @@ final class PBKDF2KeyImpl implements javax.crypto.interfaces.PBEKey {
                     if (nativeCrypto.FIPSMode() != 0) {
                         return key;
                     } else {
-                        System.err.println("FIPS module is not enabled in OpenSSL, please enable. ");
+                        // System.err.println("FIPS module is not enabled in OpenSSL, please enable. ");
+                        new RuntimeException(
+                            "Try to invoke a method from a non FIPS compliant OpenSSL. " +
+                            "Please enable FIPS module in the configuration  ").printStackTrace();
+                        System.exit(1);
                     }
                 } else if (nativeCryptTrace) {
                     System.err.println("Native PBE derive failed for algorithm " + hashAlgo + ", using Java implementation.");
