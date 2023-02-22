@@ -64,10 +64,10 @@ public class NativeCrypto {
     // -1 : library load failed
     //  0 : openssl 1.0.x
     //  1 : openssl 1.1.x or newer
-    private final int ossl_ver;
+    private final long ossl_ver;
 
-    private static int loadCryptoLibraries() {
-        int osslVersion;
+    private static long loadCryptoLibraries() {
+        long osslVersion;
 
         try {
             // load jncrypto JNI library
@@ -91,7 +91,7 @@ public class NativeCrypto {
 
     @SuppressWarnings("removal")
     private NativeCrypto() {
-        ossl_ver = AccessController.doPrivileged((PrivilegedAction<Integer>) () -> loadCryptoLibraries()).intValue();
+        ossl_ver = AccessController.doPrivileged((PrivilegedAction<Long>) () -> loadCryptoLibraries()).longValue();
     }
 
     /**
@@ -112,7 +112,7 @@ public class NativeCrypto {
      *
      * @return the OpenSSL library version if it is available
      */
-    public static final int getVersionIfAvailable() {
+    public static final long getVersionIfAvailable() {
 /*[IF CRIU_SUPPORT]*/
         if (InternalCRIUSupport.isCheckpointAllowed()) {
             return -1;
@@ -185,7 +185,7 @@ public class NativeCrypto {
     }
 
     /* Native digest interfaces */
-    private static final native int loadCrypto(boolean traceEnabled);
+    private static final native long loadCrypto(boolean traceEnabled);
 
     public final native long DigestCreateContext(long nativeBuffer,
                                                  int algoIndex);

@@ -30,6 +30,7 @@
 #include <openssl/pkcs12.h>
 #include <openssl/crypto.h>
 
+#include <ctype.h>
 #include <jni.h>
 #include <stdio.h>
 #include <stdint.h>
@@ -273,15 +274,40 @@ static void printErrors(void) {
     fflush(stderr);
 }
 
+/*
+ * We use a 8 digit map (AABBCCDD) to represent the version of openssl.
+ * AA is the major version, 
+ * BB is the minor version, 
+ * CC is the revision, and DD for the letter that could be present in any version.
+ * For example, if an openssl version is in this scheme 1.1.1k.
+ * The ossl_ver should be 10101011 ( k is the 11th letter value for DD here... ).
+ * 
+*/
+long ver_to_l(const char* astring) {
+    long major = 0;
+    long minor = 0;
+    long revision = 0;
+    long diff = 0;
+    sscanf(astring, "OpenSSL %ld.%ld.%ld", &major, &minor, &revision);
+    char last_char = astring[strlen(astring) - 1];
+    if (isalpha(last_char)) {
+        diff = abs(last_char - 'a') + 1;
+    }
+    return major * 10000000 + minor * 100000 + revision * 1000 + diff;
+}
+
 static void *crypto_library = NULL;
-int ossl_ver;
-int ossl_ver3 = 0;
+// int ossl_ver;
+// int ossl_ver3 = 0;
+long ossl_ver;
+
 /*
  * Class:     jdk_crypto_jniprovider_NativeCrypto
  * Method:    loadCrypto
  * Signature: (Z)V
  */
-JNIEXPORT jint JNICALL Java_jdk_crypto_jniprovider_NativeCrypto_loadCrypto
+// JNIEXPORT jint JNICALL Java_jdk_crypto_jniprovider_NativeCrypto_loadCrypto
+JNIEXPORT jlong JNICALL Java_jdk_crypto_jniprovider_NativeCrypto_loadCrypto
   (JNIEnv *env, jclass thisObj, jboolean traceEnabled)
 {
 
@@ -324,7 +350,9 @@ JNIEXPORT jint JNICALL Java_jdk_crypto_jniprovider_NativeCrypto_loadCrypto
         } else {
             openssl_version = (*OSSL_version)(0); /* get OPENSSL_VERSION */
             /* Ensure the OpenSSL version is "OpenSSL 1.0.x" */
-            if (0 != strncmp(openssl_version, OPENSSL_VERSION_1_0, strlen(OPENSSL_VERSION_1_0))) {
+            ossl_ver = ver_to_l(openssl_version);
+            // if (0 != strncmp(openssl_version, OPENSSL_VERSION_1_0, strlen(OPENSSL_VERSION_1_0))) {
+            if(!(ossl_ver >= 10000000 && ossl_ver < 10100000)) {
                 if (traceEnabled) {
                     fprintf(stderr, "Unsupported OpenSSL version: %s\n", openssl_version);
                     fflush(stderr);
@@ -333,14 +361,16 @@ JNIEXPORT jint JNICALL Java_jdk_crypto_jniprovider_NativeCrypto_loadCrypto
                 crypto_library = NULL;
                 return -1;
             }
-            ossl_ver = 0;
+            printf("1. ossl_ver is: %ld", ossl_ver);
+            // ossl_ver = 0;
         }
     } else {
         openssl_version = (*OSSL_version)(0); /* get OPENSSL_VERSION */
         /* Ensure the OpenSSL version is "OpenSSL 1.1.x" or "OpenSSL 3.x.x". */
-        if ((0 != strncmp(openssl_version, OPENSSL_VERSION_1_1, strlen(OPENSSL_VERSION_1_1)))
-        && (0 != strncmp(openssl_version, OPENSSL_VERSION_3_X, strlen(OPENSSL_VERSION_3_X)))
-        ) {
+        ossl_ver = ver_to_l(openssl_version);
+        // if ((0 != strncmp(openssl_version, OPENSSL_VERSION_1_1, strlen(OPENSSL_VERSION_1_1)))
+        // && (0 != strncmp(openssl_version, OPENSSL_VERSION_3_X, strlen(OPENSSL_VERSION_3_X)))
+        if(!(ossl_ver >= 10100000 && ossl_ver < 20000000) && !(ossl_ver >= 30000000 && ossl_ver < 40000000)) {
             if (traceEnabled) {
                 fprintf(stderr, "Unsupported OpenSSL version: %s\n", openssl_version);
                 fflush(stderr);
@@ -349,11 +379,13 @@ JNIEXPORT jint JNICALL Java_jdk_crypto_jniprovider_NativeCrypto_loadCrypto
             crypto_library = NULL;
             return -1;
         }
-        ossl_ver = 1;
+        ossl_ver = ver_to_l(openssl_version);
+        printf("2. ossl_ver is: %ld", ossl_ver);
+        // ossl_ver = 1;
     }
-    if(0 == strncmp(openssl_version, OPENSSL_VERSION_3_X, strlen(OPENSSL_VERSION_3_X))) {
-        ossl_ver3 = 3;
-    }
+    // if(0 == strncmp(openssl_version, OPENSSL_VERSION_3_X, strlen(OPENSSL_VERSION_3_X))) {
+    //     ossl_ver3 = 3;
+    // }
 
     if (traceEnabled) {
         fprintf(stderr, "Supported OpenSSL version: %s\n", openssl_version);
@@ -366,7 +398,37 @@ JNIEXPORT jint JNICALL Java_jdk_crypto_jniprovider_NativeCrypto_loadCrypto
     /* Load the EVP_default_properties_is_fips_enabled() function for OpenSSL 3.x version. */
     OSSL_EVP_default_properties_is_fips_enabled = (OSSL_EVP_default_properties_is_fips_enabled_t*)find_crypto_symbol(crypto_library, "EVP_default_properties_is_fips_enabled");
 
-    if((0 == ossl_ver || 1 == ossl_ver) && (3 != ossl_ver3)) {
+    // if((0 == ossl_ver || 1 == ossl_ver) && (3 != ossl_ver3)) {
+    //     /* Check if OpenSSL is FIPS compliant. */
+    //     int fips_compatible_build = -1;
+
+    //     /*
+    //     * The return value is either 0 to indicate that the FIPS mode of operation is not enabled, 
+    //     * or the value used for the ONOFF parameter passed to an earlier successful call to FIPS_mode_set().
+    //     */
+    //     if ((fips_compatible_build = (*OSSL_FIPS_mode)()) == 0) {
+    //         if (traceEnabled) {
+    //             fprintf(stderr, "The current version of OpenSSL 1.x is not FIPS-capable.\n");
+    //             fflush(stderr);
+    //         }
+    //     }
+    // }
+
+    // if(3 == ossl_ver3) {
+    //     /*
+    //     * EVP_default_properties_is_fips_enabled() returns 1 if the 'fips=yes' default property is set for the given libctx. 
+    //     * Otherwise it returns 0.
+    //     */
+    //     if ((*OSSL_EVP_default_properties_is_fips_enabled)(NULL) == 0) {
+    //         if (traceEnabled) {
+    //             fprintf(stderr, "The current version of OpenSSL 3.x is not FIPS-capable.\n");
+    //             fflush(stderr);
+    //         }
+    //     }
+    // }
+
+    if(ossl_ver >= 10000000 && ossl_ver < 20000000) {
+        printf("3. 10000000 <= ossl_ver < 20000000");
         /* Check if OpenSSL is FIPS compliant. */
         int fips_compatible_build = -1;
 
@@ -382,7 +444,8 @@ JNIEXPORT jint JNICALL Java_jdk_crypto_jniprovider_NativeCrypto_loadCrypto
         }
     }
 
-    if(3 == ossl_ver3) {
+    if(ossl_ver >= 30000000 && ossl_ver < 40000000) {
+        printf("4. 30000000 <= ossl_ver < 40000000");
         /*
         * EVP_default_properties_is_fips_enabled() returns 1 if the 'fips=yes' default property is set for the given libctx. 
         * Otherwise it returns 0.
@@ -401,7 +464,9 @@ JNIEXPORT jint JNICALL Java_jdk_crypto_jniprovider_NativeCrypto_loadCrypto
     OSSL_get_error = (OSSL_get_error_t*)find_crypto_symbol(crypto_library, "ERR_get_error");
 
     /* Load Threading routines for OpenSSL 1.0.2 */
-    if (0 == ossl_ver) {
+    // if (0 == ossl_ver) {
+    if(ossl_ver >= 10000000 && ossl_ver < 10100000) {
+        printf("5. Load Threading routines for OpenSSL 1.0.2 -> 10000000 <=ossl_ver< 10100000");
         OSSL_CRYPTO_num_locks = (OSSL_CRYPTO_num_locks_t*)find_crypto_symbol(crypto_library, "CRYPTO_num_locks");
         OSSL_CRYPTO_THREADID_set_numeric = (OSSL_CRYPTO_THREADID_set_numeric_t*)find_crypto_symbol(crypto_library, "CRYPTO_THREADID_set_numeric");
         OSSL_OPENSSL_malloc = (OSSL_OPENSSL_malloc_t*)find_crypto_symbol(crypto_library, "CRYPTO_malloc");
@@ -417,7 +482,9 @@ JNIEXPORT jint JNICALL Java_jdk_crypto_jniprovider_NativeCrypto_loadCrypto
     OSSL_sha384 = (OSSL_sha_t*)find_crypto_symbol(crypto_library, "EVP_sha384");
     OSSL_sha512 = (OSSL_sha_t*)find_crypto_symbol(crypto_library, "EVP_sha512");
 
-    if (1 == ossl_ver) {
+    // if (1 == ossl_ver) {
+    if((ossl_ver >= 10100000 && ossl_ver < 20000000) || (ossl_ver >= 30000000 && ossl_ver < 40000000)) {
+        printf("(6. ossl_ver >= 10100000 && ossl_ver < 20000000) || (ossl_ver >= 30000000 && ossl_ver < 40000000)");
         OSSL_MD_CTX_new = (OSSL_MD_CTX_new_t*)find_crypto_symbol(crypto_library, "EVP_MD_CTX_new");
         OSSL_MD_CTX_reset = (OSSL_MD_CTX_reset_t*)find_crypto_symbol(crypto_library, "EVP_MD_CTX_reset");
         OSSL_MD_CTX_free = (OSSL_MD_CTX_free_t*)find_crypto_symbol(crypto_library, "EVP_MD_CTX_free");
@@ -451,7 +518,9 @@ JNIEXPORT jint JNICALL Java_jdk_crypto_jniprovider_NativeCrypto_loadCrypto
     OSSL_DecryptFinal = (OSSL_DecryptFinal_t*)find_crypto_symbol(crypto_library, "EVP_DecryptFinal");
 
     /* Load the functions symbols for OpenSSL ChaCha20 algorithms. (Need OpenSSL 1.1.x or above) */
-    if (1 == ossl_ver) {
+    // if (1 == ossl_ver) {
+    if((ossl_ver >= 10100000 && ossl_ver < 20000000) || (ossl_ver >= 30000000 && ossl_ver < 40000000)) {
+        printf("(7. ossl_ver >= 10100000 && ossl_ver < 20000000) || (ossl_ver >= 30000000 && ossl_ver < 40000000)");
         OSSL_chacha20 = (OSSL_cipher_t*)find_crypto_symbol(crypto_library, "EVP_chacha20");
         OSSL_chacha20_poly1305 = (OSSL_cipher_t*)find_crypto_symbol(crypto_library, "EVP_chacha20_poly1305");
     } else {
@@ -462,7 +531,9 @@ JNIEXPORT jint JNICALL Java_jdk_crypto_jniprovider_NativeCrypto_loadCrypto
     /* Load the functions symbols for OpenSSL RSA algorithm. */
     OSSL_RSA_new = (OSSL_RSA_new_t*)find_crypto_symbol(crypto_library, "RSA_new");
 
-    if (1 == ossl_ver) {
+    // if (1 == ossl_ver) {
+    if((ossl_ver >= 10100000 && ossl_ver < 20000000) || (ossl_ver >= 30000000 && ossl_ver < 40000000)) {
+        printf("(8. ossl_ver >= 10100000 && ossl_ver < 20000000) || (ossl_ver >= 30000000 && ossl_ver < 40000000)");
         OSSL_RSA_set0_key = (OSSL_RSA_set0_key_t*)find_crypto_symbol(crypto_library, "RSA_set0_key");
         OSSL_RSA_set0_factors = (OSSL_RSA_set0_factors_t*)find_crypto_symbol(crypto_library, "RSA_set0_factors");
         OSSL_RSA_set0_crt_params = (OSSL_RSA_set0_key_t*)find_crypto_symbol(crypto_library, "RSA_set0_crt_params");
@@ -585,27 +656,37 @@ JNIEXPORT jint JNICALL Java_jdk_crypto_jniprovider_NativeCrypto_loadCrypto
         (NULL == OSSL_PKCS12_key_gen) ||
         (NULL == OSSL_PKCS5_PBKDF2_HMAC) ||
         /* Check symbols that are only available in OpenSSL 1.1.x and above */
-        ((1 == ossl_ver) && ((NULL == OSSL_chacha20) || (NULL == OSSL_chacha20_poly1305))) ||
+        // ((1 == ossl_ver) && ((NULL == OSSL_chacha20) || (NULL == OSSL_chacha20_poly1305))) ||
+        (((ossl_ver >= 10100000 && ossl_ver < 20000000) || (ossl_ver >= 30000000 && ossl_ver < 40000000)) && ((NULL == OSSL_chacha20) || (NULL == OSSL_chacha20_poly1305))) ||
         /* Check symbols that are only available in OpenSSL 1.0.x and above */
-        ((NULL == OSSL_CRYPTO_num_locks) && (0 == ossl_ver)) ||
-        ((NULL == OSSL_CRYPTO_THREADID_set_numeric) && (0 == ossl_ver)) ||
-        ((NULL == OSSL_OPENSSL_malloc) && (0 == ossl_ver)) ||
-        ((NULL == OSSL_OPENSSL_free) && (0 == ossl_ver)) ||
-        ((NULL == OSSL_CRYPTO_THREADID_set_callback) && (0 == ossl_ver)) ||
-        ((NULL == OSSL_CRYPTO_set_locking_callback) && (0 == ossl_ver))) {
+        // ((NULL == OSSL_CRYPTO_num_locks) && (0 == ossl_ver)) ||
+        // ((NULL == OSSL_CRYPTO_THREADID_set_numeric) && (0 == ossl_ver)) ||
+        // ((NULL == OSSL_OPENSSL_malloc) && (0 == ossl_ver)) ||
+        // ((NULL == OSSL_OPENSSL_free) && (0 == ossl_ver)) ||
+        // ((NULL == OSSL_CRYPTO_THREADID_set_callback) && (0 == ossl_ver)) ||
+        // ((NULL == OSSL_CRYPTO_set_locking_callback) && (0 == ossl_ver))) {
+        ((NULL == OSSL_CRYPTO_num_locks) && ((ossl_ver >= 10000000) && (ossl_ver < 10100000))) ||
+        ((NULL == OSSL_CRYPTO_THREADID_set_numeric) && ((ossl_ver >= 10000000) && (ossl_ver < 10100000))) ||
+        ((NULL == OSSL_OPENSSL_malloc) && ((ossl_ver >= 10000000) && (ossl_ver < 10100000))) ||
+        ((NULL == OSSL_OPENSSL_free) && ((ossl_ver >= 10000000) && (ossl_ver < 10100000))) ||
+        ((NULL == OSSL_CRYPTO_THREADID_set_callback) && ((ossl_ver >= 10000000) && (ossl_ver < 10100000))) ||
+        ((NULL == OSSL_CRYPTO_set_locking_callback) && ((ossl_ver >= 10000000) && (ossl_ver < 10100000)))) {
         /* fprintf(stderr, "One or more of the required symbols are missing in the crypto library\n"); */
         /* fflush(stderr); */
         unload_crypto_library(crypto_library);
         crypto_library = NULL;
         return -1;
     } else {
-        if (0 == ossl_ver) {
+        // if (0 == ossl_ver) {
+        if((ossl_ver >= 10000000) && (ossl_ver < 10100000)) {
+            printf("9. (ossl_ver >= 10000000) && (ossl_ver < 10100000)");
             if (0 != thread_setup()) {
                 unload_crypto_library(crypto_library);
                 crypto_library = NULL;
                 return -1;
             }
         }
+        printf("10. get the ossl_ver: %ld", ossl_ver);
         return ossl_ver;
     }
 }
@@ -3001,13 +3082,22 @@ JNIEXPORT jint JNICALL
 Java_jdk_crypto_jniprovider_NativeCrypto_FIPSMode
   (JNIEnv *env, jclass obj)
 {
-    if(0 == ossl_ver3) {
-        if(0 == ossl_ver || 1 == ossl_ver) {
+    // if(0 == ossl_ver3) {
+    //     if(0 == ossl_ver || 1 == ossl_ver) {
+    //         return (*OSSL_FIPS_mode)();
+    //     } else {
+    //         return 0;
+    //     }
+    // } else {
+    //     return (*OSSL_EVP_default_properties_is_fips_enabled)(NULL);
+    // }
+    if(ossl_ver >= 30000000 && ossl_ver < 40000000) {
+        return (*OSSL_EVP_default_properties_is_fips_enabled)(NULL);
+    } else {
+        if(ossl_ver >= 10000000 && ossl_ver < 10200000) {
             return (*OSSL_FIPS_mode)();
         } else {
             return 0;
         }
-    } else {
-        return (*OSSL_EVP_default_properties_is_fips_enabled)(NULL);
     }
 }

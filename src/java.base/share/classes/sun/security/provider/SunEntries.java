@@ -223,7 +223,7 @@ public final class SunEntries {
          * Set the digest provider based on whether native crypto is
          * enabled or not.
          */
-        if (useNativeDigest) {
+        if (useNativeDigest && NativeCrypto.isAllowedAndLoaded()) {
             providerSHA = "sun.security.provider.NativeSHA";
             providerSHA224 = "sun.security.provider.NativeSHA2$SHA224";
             providerSHA256 = "sun.security.provider.NativeSHA2$SHA256";
