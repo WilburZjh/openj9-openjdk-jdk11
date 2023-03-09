@@ -2105,14 +2105,20 @@ public final class PKCS12KeyStore extends KeyStoreSpi {
                 try {
                     RetryWithZero.run(pass -> {
                         // Use JCE
+                        System.out.println("engineLoad -> 1");
                         SecretKey skey = getPBEKey(pass);
+                        System.out.println("engineLoad -> 2");
                         Cipher cipher = Cipher.getInstance(
                                 mapPBEParamsToAlgorithm(algOid, algParams));
+                        System.out.println("engineLoad -> 3");
                         cipher.init(Cipher.DECRYPT_MODE, skey, algParams);
+                        System.out.println("engineLoad -> 4");
                         loadSafeContents(new DerInputStream(cipher.doFinal(rawData)));
+                        System.out.println("engineLoad -> 5");
                         return null;
                     }, password);
                 } catch (Exception e) {
+                    e.printStackTrace();
                     throw new IOException("keystore password was incorrect",
                             new UnrecoverableKeyException(
                                     "failed to decrypt safe contents entry: " + e));
