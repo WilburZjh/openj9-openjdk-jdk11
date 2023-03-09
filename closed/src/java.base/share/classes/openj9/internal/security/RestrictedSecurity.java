@@ -56,6 +56,7 @@ public final class RestrictedSecurity {
     private static final String userSecuritySetting;
 
     private static boolean securityEnabled;
+    private static boolean FIPSSupportPKCS12;
 
     private static int userSecurityNum;
     private static boolean userSecurityTrace;
@@ -146,6 +147,15 @@ public final class RestrictedSecurity {
      */
     public static boolean isFIPSEnabled() {
         return securityEnabled && (userSecurityNum == 1);
+    }
+
+    /**
+     * FIPS policy specific flag. By default, the PKCS12 keystore is supported in FIPS.
+     * 
+     * @return true if PKCS12 keystore is supported in FIPS
+     */
+    public static boolean isFIPSSupportPKCS12() {
+        return FIPSSupportPKCS12;
     }
 
     /**
@@ -260,6 +270,10 @@ public final class RestrictedSecurity {
                 }
 
                 securityEnabled = true;
+
+                // After the restricted security policy loaded.
+                // Check if loading PKCS12 keystore is supported in NSS FIPS.
+                FIPSSupportPKCS12 = restricts.isFIPSSupportPKCS12();
             }
         } catch (Exception e) {
             if (debug != null) {
@@ -484,6 +498,12 @@ public final class RestrictedSecurity {
 
         // The java.security properties.
         private final Properties securityProps;
+
+        // PKCS12 PBE support
+        private static String PBES2SecretKeyFactory;
+        private static String PBES2AlgParameters;
+        private static String PBES2Cipher;
+        private static String PBES2Mac;
 
         /**
          *
@@ -978,6 +998,82 @@ public final class RestrictedSecurity {
             System.out.println("    -Dsemeru.restrictedsecurity=help");
 
             System.out.println();
+        }
+
+        /**
+         * Check if the PKCS12 keystore is supported in FIPS mode. By default,
+         * the PKCS12 keystore is supported in FIPS.
+         *
+         * @return true if PKCS12 keystore is supported in FIPS mode
+         */
+        protected boolean isFIPSSupportPKCS12() {
+            if (debug != null) {
+                debug.println("Check the support of loading PKCS12 keystore in FIPS mode.");
+            }
+
+            // Only FIPS need to support PKCS12 keystore.
+            // By default, PKCS12 keystore support enabled in provider SUN constraints.
+            if (userSecurityNum != 1) {
+                if (debug != null) {
+                    debug.println("Not FIPS policy, no need to check the support of loading PKCS12 keystore.");
+                }
+                return false;
+            }
+
+            // Check if the PKCS12 keystore support is enabled in provider SUN's constraints.
+            for (Constraint constraintSUN : providerConstraints.get("SUN")) {
+                if ("KeyStore".equalsIgnoreCase(constraintSUN.type) && "PKCS12".equalsIgnoreCase(constraintSUN.algorithm)) {
+                    // Check PBES2 AlgorithmParameters, SecretKeyFactory and Cipher from SunJCE constraints
+                    for (Constraint constraintSunJCE : providerConstraints.get("SunJCE")) {
+                        String type = constraintSunJCE.type;
+                        String algorithm = constraintSunJCE.algorithm;
+                        if ("AlgorithmParameters".equalsIgnoreCase(type)) {
+                            PBES2AlgParameters = algorithm;
+                            continue;
+                        } else if ("SecretKeyFactory".equalsIgnoreCase(type)) {
+                            PBES2SecretKeyFactory = algorithm;
+                           continue;
+                        } else if ("Cipher".equalsIgnoreCase(type)) {
+                            PBES2Cipher = algorithm;
+                           continue;
+                        } else if ("Mac".equalsIgnoreCase(type)) {
+                            PBES2Mac = algorithm;
+                           continue;
+                        } else {
+                            throw new RuntimeException(
+                                "The service of loading PKCS12 keystore is enabled in FIPS mode " +
+                                "in provider SUN. But the AlgorithmParameters, SecretKeyFactory, Cipher and Mac " +
+                                "are not found in provider SunJCE's constraints " +
+                                "or other type except AlgorithmParameters, SecretKeyFactory, Cipher and Mac are found.");
+                        }
+                    }
+
+                    if (isNullOrBlank(PBES2AlgParameters) || isNullOrBlank(PBES2SecretKeyFactory) || isNullOrBlank(PBES2Cipher) || isNullOrBlank(PBES2Mac)) {
+                        throw new RuntimeException(
+                                "The service of loading PKCS12 keystore is enabled in FIPS mode " +
+                                "in provider SUN. But the AlgorithmParameters, SecretKeyFactory, Cipher and Mac" +
+                                "settings are empty in provider SunJCE's constraints.");
+                    }
+
+                    if ((!PBES2AlgParameters.contains("PBE")) || (!PBES2SecretKeyFactory.contains("PBE")) || (!PBES2Cipher.contains("PBE")) || (!PBES2Mac.contains("PBE"))) {
+                        throw new RuntimeException(
+                                "The service of loading PKCS12 keystore is enabled in FIPS mode " +
+                                "in provider SUN. But the AlgorithmParameters, SecretKeyFactory, Cipher and Mac" +
+                                "settings are not pbe algorithm.");
+                    }
+
+                    if (debug != null) {
+                        debug.println("Loading PKCS12 keystore is supported in FIPS mode.");
+                    }
+
+                    return true;
+                }
+            }
+
+            if (debug != null) {
+                debug.println("Loading PKCS12 keystore in FIPS mode is not enabled in provider SUN's constraints.");
+            }
+            return false;
         }
 
         /**
