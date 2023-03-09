@@ -655,6 +655,7 @@ public final class PKCS12KeyStore extends KeyStoreSpi {
                 secretKeyInfo.putInteger(0);
                 AlgorithmId algId = AlgorithmId.get(key.getAlgorithm());
                 algId.encode(secretKeyInfo);
+                System.out.println("Debug --> key is an instanceof SecretKey, it's implementation class is: " + key.getClass().getName());
                 secretKeyInfo.putOctetString(key.getEncoded());
                 pkcs8.write(DerValue.tag_Sequence, secretKeyInfo);
 
