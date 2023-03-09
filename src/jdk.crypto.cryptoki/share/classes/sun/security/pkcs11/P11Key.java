@@ -399,6 +399,17 @@ abstract class P11Key implements Key, Length {
                 }
             }
         }
+        if((SunPKCS11.mysunpkcs11 != null) && "EC".equals(algorithm)) {
+            if (attributes[0].getBoolean() || attributes[1].getBoolean() || (attributes[2].getBoolean() == false)) {
+                try {
+                    byte[] key = SunPKCS11.mysunpkcs11.exportKey(session.id(), attributes, keyID);
+                    ECPrivateKey ecPrivKey = ECUtil.decodePKCS8ECPrivateKey(key);
+                    return new P11ECPrivateKeyFIPS(session, keyID, algorithm, keyLength, attributes, ecPrivKey);
+                } catch (PKCS11Exception | InvalidKeySpecException e) {
+                    // Attempt failed, create a P11PrivateKey object.
+                }
+            }
+        }
         if (attributes[1].getBoolean() || (attributes[2].getBoolean() == false)) {
             return new P11PrivateKey
                 (session, keyID, algorithm, keyLength, attributes);
@@ -1123,6 +1134,39 @@ abstract class P11Key implements Key, Length {
             return ((this.y.compareTo(other.getY()) == 0) &&
                     (this.params.getP().compareTo(otherParams.getP()) == 0) &&
                     (this.params.getG().compareTo(otherParams.getG()) == 0));
+        }
+    }
+
+    // EC private key when in FIPS mode
+    private static final class P11ECPrivateKeyFIPS extends P11Key
+                                                implements ECPrivateKey {
+        private static final long serialVersionUID = -7786054399510515515L;
+        private final ECPrivateKey key;
+
+        P11ECPrivateKeyFIPS(Session session, long keyID, String algorithm,
+                int keyLength, CK_ATTRIBUTE[] attributes, ECPrivateKey key) {
+            super(PRIVATE, session, keyID, algorithm, keyLength, attributes);
+            this.key = key;
+        }
+
+        @Override
+        public String getFormat() {
+            return "PKCS#8";
+        }
+
+        @Override
+        synchronized byte[] getEncodedInternal() {
+            return key.getEncoded();
+        }
+
+        @Override
+        public BigInteger getS() {
+            return key.getS();
+        }
+
+        @Override
+        public ECParameterSpec getParams() {
+            return key.getParams();
         }
     }
 
