@@ -421,6 +421,7 @@ public final class PKCS12KeyStore extends KeyStoreSpi {
                     // Special handling required for PBE: needs a PBEKeySpec
                     Key tmp;
                     if (keyAlgo.startsWith("PBE")) {
+                        System.out.println("PKCS12KeyStore --> engineGetKey --> keyAlgo: " + keyAlgo);
                         SecretKeyFactory sKeyFactory =
                                 SecretKeyFactory.getInstance(keyAlgo);
                         KeySpec pbeKeySpec =
@@ -905,6 +906,7 @@ public final class PKCS12KeyStore extends KeyStoreSpi {
 
             // Use JCE
             SecretKey skey = getPBEKey(passwordProtection.getPassword());
+            System.out.println("PKCS12KeyStore --> encryptPrivateKey --> algorithm: " + algorithm);
             Cipher cipher = Cipher.getInstance(algorithm);
             cipher.init(Cipher.ENCRYPT_MODE, skey, algParams);
             byte[] encryptedKey = cipher.doFinal(data);
@@ -1898,6 +1900,7 @@ public final class PKCS12KeyStore extends KeyStoreSpi {
 
             // Use JCE
             SecretKey skey = getPBEKey(password);
+            System.out.println("PKCS12KeyStore --> encryptContent --> certProtectionAlgorithm is: " + certProtectionAlgorithm);
             Cipher cipher = Cipher.getInstance(certProtectionAlgorithm);
             cipher.init(Cipher.ENCRYPT_MODE, skey, algParams);
             encryptedData = cipher.doFinal(data);
@@ -2105,14 +2108,20 @@ public final class PKCS12KeyStore extends KeyStoreSpi {
                 try {
                     RetryWithZero.run(pass -> {
                         // Use JCE
+                        System.out.println("PKCS12KeyStore --> engineLoad --> alg is: " + mapPBEParamsToAlgorithm(algOid, algParams));
                         SecretKey skey = getPBEKey(pass);
+                        System.out.println("PKCS12KeyStore --> engineLoad --> getPBEKey finished");
                         Cipher cipher = Cipher.getInstance(
                                 mapPBEParamsToAlgorithm(algOid, algParams));
+                        System.out.println("PKCS12KeyStore --> engineLoad --> Cipher getInstance finished");
                         cipher.init(Cipher.DECRYPT_MODE, skey, algParams);
+                        System.out.println("PKCS12KeyStore --> engineLoad --> initialize cipher finished");
                         loadSafeContents(new DerInputStream(cipher.doFinal(rawData)));
+                        System.out.println("PKCS12KeyStore --> engineLoad --> loadsafecontents finished");
                         return null;
                     }, password);
                 } catch (Exception e) {
+                    e.printStackTrace();
                     throw new IOException("keystore password was incorrect",
                             new UnrecoverableKeyException(
                                     "failed to decrypt safe contents entry: " + e));

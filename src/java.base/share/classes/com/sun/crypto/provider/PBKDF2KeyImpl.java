@@ -22,6 +22,11 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+/*
+ * ===========================================================================
+ * (c) Copyright IBM Corp. 2022, 2023 All Rights Reserved
+ * ===========================================================================
+ */
 
 package com.sun.crypto.provider;
 
@@ -42,6 +47,8 @@ import javax.crypto.SecretKey;
 import javax.crypto.spec.PBEKeySpec;
 
 import jdk.internal.ref.CleanerFactory;
+
+import openj9.internal.security.RestrictedSecurity;
 
 /**
  * This class represents a PBE key derived using PBKDF2 defined
@@ -92,6 +99,7 @@ final class PBKDF2KeyImpl implements javax.crypto.interfaces.PBEKey {
             this.passwd = passwd.clone();
         }
         // Convert the password from char[] to byte[]
+        System.out.println("PBKDF2KeyImpl --> passwd is: " + new String(passwd));
         byte[] passwdBytes = getPasswordBytes(this.passwd);
         // remove local copy
         if (passwd != null) Arrays.fill(passwd, '\0');
@@ -108,12 +116,21 @@ final class PBKDF2KeyImpl implements javax.crypto.interfaces.PBEKey {
                 throw new InvalidKeySpecException("Iteration count is negative");
             }
             int keyLength = keySpec.getKeyLength();
+            System.out.println("PBKDF2KeyImpl --> keyLength is " + keyLength);
             if (keyLength == 0) {
+                System.out.println("PBKDF2KeyImpl --> keyLength is 0");
                 throw new InvalidKeySpecException("Key length not found");
             } else if (keyLength < 0) {
+                System.out.println("PBKDF2KeyImpl --> keyLength is negative");
                 throw new InvalidKeySpecException("Key length is negative");
             }
-            this.prf = Mac.getInstance(prfAlgo, SunJCE.getInstance());
+            if (RestrictedSecurity.isFIPSEnabled()) {
+                this.prf = Mac.getInstance(prfAlgo);
+                System.out.println("PBKDF2KeyImpl --> isFIPSEnabled " + prfAlgo);
+            } else {
+                this.prf = Mac.getInstance(prfAlgo, SunJCE.getInstance());
+                System.out.println("PBKDF2KeyImpl --> not isFIPSEnabled " + prfAlgo);
+            }
             this.key = deriveKey(prf, passwdBytes, salt, iterCount, keyLength);
         } catch (NoSuchAlgorithmException nsae) {
             // not gonna happen; re-throw just in case
@@ -140,6 +157,7 @@ final class PBKDF2KeyImpl implements javax.crypto.interfaces.PBEKey {
         byte[] key = new byte[keyLength];
         try {
             int hlen = prf.getMacLength();
+            System.out.println("PNKDF2KeyImpl --> deriveKey --> hlen is: " + hlen);
             int intL = (keyLength + hlen - 1)/hlen; // ceiling
             int intR = keyLength - (intL - 1)*hlen; // residue
             byte[] ui = new byte[hlen];

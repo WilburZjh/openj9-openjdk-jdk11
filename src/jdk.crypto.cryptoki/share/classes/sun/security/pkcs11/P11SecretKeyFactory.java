@@ -298,6 +298,7 @@ final class P11SecretKeyFactory extends SecretKeyFactorySpi {
     protected SecretKey engineGenerateSecret(KeySpec keySpec)
             throws InvalidKeySpecException {
         token.ensureValid();
+        System.out.println("P11SecretKeyFactory --> engineGenerateSecret");
         if (keySpec == null) {
             throw new InvalidKeySpecException("KeySpec must not be null");
         }

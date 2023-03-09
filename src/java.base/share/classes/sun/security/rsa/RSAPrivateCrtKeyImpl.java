@@ -92,6 +92,7 @@ public final class RSAPrivateCrtKeyImpl
         // check all CRT-specific components are available, if any one
         // missing, return a non-CRT key instead
         if (checkComponents(key)) {
+            System.out.println("RSAPrivateCrtKeyImpl --> newKey --> This is a CRT RSA key.");
             return key;
         } else {
             return new RSAPrivateKeyImpl(

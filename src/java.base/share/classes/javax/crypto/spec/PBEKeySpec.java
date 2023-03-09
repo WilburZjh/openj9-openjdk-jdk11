@@ -78,10 +78,14 @@ public class PBEKeySpec implements KeySpec {
      * @param password the password.
      */
     public PBEKeySpec(char[] password) {
+        System.out.println("PBEKeySpec(char[] password) constructor");
         if ((password == null) || (password.length == 0)) {
+            System.out.println("PBEKeySpec(char[] password) constructor --> password is null or 0");
             this.password = new char[0];
         } else {
             this.password = password.clone();
+            System.out.println("PBEKeySpec(char[] password) constructor --> password is " + new String(this.password));
+            System.out.println("PBEKeySpec(char[] password) constructor --> keyLength is " + this.keyLength);
         }
     }
 
