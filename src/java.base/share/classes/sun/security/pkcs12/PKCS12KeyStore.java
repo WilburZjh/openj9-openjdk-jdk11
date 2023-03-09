@@ -22,6 +22,11 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+/*
+ * ===========================================================================
+ * (c) Copyright IBM Corp. 2022, 2023 All Rights Reserved
+ * ===========================================================================
+ */
 
 package sun.security.pkcs12;
 
@@ -76,6 +81,7 @@ import sun.security.pkcs.EncryptedPrivateKeyInfo;
 import sun.security.provider.JavaKeyStore.JKS;
 import sun.security.util.KeyStoreDelegator;
 
+import openj9.internal.security.RestrictedSecurity;
 
 /**
  * This class provides the keystore implementation referred to as "PKCS12".
@@ -828,7 +834,13 @@ public final class PKCS12KeyStore extends KeyStoreSpi {
             }
             if (params != null) {
                 if (algorithm.equals(pbes2_OID)) {
-                    algParams = AlgorithmParameters.getInstance("PBES2");
+                    if (RestrictedSecurity.isFIPSSupportPKCS12()) {
+                        algParams = AlgorithmParameters
+                                .getInstance(RestrictedSecurity
+                                .getPBES2AlgParameters());
+                    } else {
+                        algParams = AlgorithmParameters.getInstance("PBES2");
+                    }
                 } else {
                     algParams = AlgorithmParameters.getInstance("PBE");
                 }
@@ -850,7 +862,14 @@ public final class PKCS12KeyStore extends KeyStoreSpi {
 
         try {
             PBEKeySpec keySpec = new PBEKeySpec(password);
-            SecretKeyFactory skFac = SecretKeyFactory.getInstance("PBE");
+            SecretKeyFactory skFac;
+            if (RestrictedSecurity.isFIPSSupportPKCS12()) {
+                skFac = SecretKeyFactory
+                        .getInstance(RestrictedSecurity
+                        .getPBES2SecretKeyFactory());
+            } else {
+                skFac = SecretKeyFactory.getInstance("PBE");
+            }
             skey = skFac.generateSecret(keySpec);
             keySpec.clearPassword();
         } catch (Exception e) {
