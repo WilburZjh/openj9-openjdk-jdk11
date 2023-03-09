@@ -2129,56 +2129,58 @@ public final class PKCS12KeyStore extends KeyStoreSpi {
         }
 
         // The MacData is optional.
-        if (s.available() > 0) {
-            // If there is no password, we cannot fail. KeyStore.load(is, null)
-            // has been known to never fail because of a null password.
-            if (password != null) {
-                MacData macData = new MacData(s);
-                int ic = macData.getIterations();
+        if(! RestrictedSecurity.isFIPSEnabled()) {
+            if (s.available() > 0) {
+                // If there is no password, we cannot fail. KeyStore.load(is, null)
+                // has been known to never fail because of a null password.
+                if (password != null) {
+                    MacData macData = new MacData(s);
+                    int ic = macData.getIterations();
 
-                try {
-                    if (ic > MAX_ITERATION_COUNT) {
-                        throw new InvalidAlgorithmParameterException(
-                                "MAC iteration count too large: " + ic);
+                    try {
+                        if (ic > MAX_ITERATION_COUNT) {
+                            throw new InvalidAlgorithmParameterException(
+                                    "MAC iteration count too large: " + ic);
+                        }
+
+                        String algName =
+                                macData.getDigestAlgName().toUpperCase(Locale.ENGLISH);
+
+                        // Change SHA-1 to SHA1
+                        algName = algName.replace("-", "");
+
+                        macAlgorithm = "HmacPBE" + algName;
+                        macIterationCount = ic;
+
+                        // generate MAC (MAC key is created within JCE)
+                        Mac m = Mac.getInstance(macAlgorithm);
+                        PBEParameterSpec params =
+                                new PBEParameterSpec(macData.getSalt(), ic);
+
+                        RetryWithZero.run(pass -> {
+                            SecretKey key = getPBEKey(pass);
+                            m.init(key, params);
+                            m.update(authSafeData);
+                            byte[] macResult = m.doFinal();
+
+                            if (debug != null) {
+                                debug.println("Checking keystore integrity " +
+                                        "(" + m.getAlgorithm() + " iterations: " + ic + ")");
+                            }
+
+                            if (!MessageDigest.isEqual(macData.getDigest(), macResult)) {
+                                throw new UnrecoverableKeyException("Failed PKCS12" +
+                                        " integrity checking");
+                            }
+                            return (Void) null;
+                        }, password);
+                    } catch (Exception e) {
+                        throw new IOException("Integrity check failed: " + e, e);
                     }
-
-                    String algName =
-                            macData.getDigestAlgName().toUpperCase(Locale.ENGLISH);
-
-                    // Change SHA-1 to SHA1
-                    algName = algName.replace("-", "");
-
-                    macAlgorithm = "HmacPBE" + algName;
-                    macIterationCount = ic;
-
-                    // generate MAC (MAC key is created within JCE)
-                    Mac m = Mac.getInstance(macAlgorithm);
-                    PBEParameterSpec params =
-                            new PBEParameterSpec(macData.getSalt(), ic);
-
-                    RetryWithZero.run(pass -> {
-                        SecretKey key = getPBEKey(pass);
-                        m.init(key, params);
-                        m.update(authSafeData);
-                        byte[] macResult = m.doFinal();
-
-                        if (debug != null) {
-                            debug.println("Checking keystore integrity " +
-                                    "(" + m.getAlgorithm() + " iterations: " + ic + ")");
-                        }
-
-                        if (!MessageDigest.isEqual(macData.getDigest(), macResult)) {
-                            throw new UnrecoverableKeyException("Failed PKCS12" +
-                                    " integrity checking");
-                        }
-                        return (Void) null;
-                    }, password);
-                } catch (Exception e) {
-                    throw new IOException("Integrity check failed: " + e, e);
                 }
+            } else {
+                macAlgorithm = "NONE";
             }
-        } else {
-            macAlgorithm = "NONE";
         }
 
         /*
