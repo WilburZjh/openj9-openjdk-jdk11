@@ -77,6 +77,8 @@ public class NativeCrypto {
             System.loadLibrary("jncrypto");
             // load OpenSSL crypto library dynamically
             osslVersion = loadCrypto(traceEnabled);
+            System.out.println("loadCryptoLibraries traceEnable: " + String.valueOf(traceEnabled));
+            System.out.println("loadCryptoLibraries osslVersion 1: " + osslVersion);
             if (traceEnabled && (osslVersion != -1)) {
                 System.err.println("Native crypto library load succeeded - using native crypto library.");
             }
@@ -89,6 +91,7 @@ public class NativeCrypto {
             // signal load failure
             osslVersion = -1;
         }
+        System.out.println("loadCryptoLibraries osslVersion 2: " + osslVersion);
         return osslVersion;
     }
 
@@ -140,7 +143,9 @@ public class NativeCrypto {
      */
     public static final boolean isAlgorithmEnabled(String property, String name) {
         boolean useNativeAlgorithm = false;
+        System.out.println("isAlgorithmEnabled-1");
         if (useNativeCrypto) {
+            System.out.println("isAlgorithmEnabled-2");
             useNativeAlgorithm = Boolean.parseBoolean(
                     GetPropertyAction.privilegedGetProperty(property, "true"));
         }
@@ -148,10 +153,14 @@ public class NativeCrypto {
          * User wants to use the native crypto implementation. Ensure that the native crypto library is enabled.
          * Otherwise, issue a warning message.
          */
+        System.out.println("isAlgorithmEnabled-3");
         if (traceEnabled) {
+            System.out.println("isAlgorithmEnabled-4");
             if (useNativeAlgorithm) {
+                System.out.println("isAlgorithmEnabled-5");
                 System.err.println(name + " native crypto implementation enabled.");
             } else {
+                System.out.println("isAlgorithmEnabled-6");
                 System.err.println(name + " native crypto implementation disabled." +
                         " Using Java crypto implementation.");
             }
@@ -169,12 +178,14 @@ public class NativeCrypto {
 
     @CallerSensitive
     public static NativeCrypto getNativeCrypto() {
+        System.out.println("getNativeCrypto-1");
         ClassLoader callerClassLoader = Reflection.getCallerClass().getClassLoader();
-
+        System.out.println("getNativeCrypto-2");
         if ((callerClassLoader == null) || (callerClassLoader == VM.getVMLangAccess().getExtClassLoader())) {
+            System.out.println("getNativeCrypto-3");
             return InstanceHolder.instance;
         }
-
+        System.out.println("getNativeCrypto-4");
         throw new SecurityException("NativeCrypto");
     }
 
