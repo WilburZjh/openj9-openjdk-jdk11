@@ -159,11 +159,14 @@ final class P11SecretKeyFactory extends SecretKeyFactorySpi {
             System.out.println("key is an instance of P11Key.");
             P11Key p11Key = (P11Key)key;
             if (p11Key.token == token) {
+                System.out.println("p11Key.token == token");
                 if (extraAttrs != null) {
+                    System.out.println("extraAttrs in not null.");
                     P11Key newP11Key = null;
                     Session session = null;
                     long p11KeyID = p11Key.getKeyID();
                     try {
+                        System.out.println("extraAttrs in not null -> start try...");
                         session = token.getObjSession();
                         long newKeyID = token.p11.C_CopyObject(session.id(),
                             p11KeyID, extraAttrs);
@@ -180,6 +183,7 @@ final class P11SecretKeyFactory extends SecretKeyFactorySpi {
                     }
                     p11Key = newP11Key;
                 }
+                System.out.println("extraAttrs in null.");
                 return p11Key;
             }
         }

@@ -2105,6 +2105,16 @@ public final class PKCS12KeyStore extends KeyStoreSpi {
                 try {
                     RetryWithZero.run(pass -> {
                         // Use JCE
+                        System.out.print("pass is: ");
+                        for(int aa=0; aa<pass.length; aa++) {
+                            System.out.print(pass[aa]);
+                        }
+                        System.out.println();
+                        System.out.print("password is: ");
+                        for(int bb=0; bb<password.length; bb++) {
+                            System.out.print(password[bb]);
+                        }
+                        System.out.println();
                         System.out.println("engineLoad -> 1");
                         SecretKey skey = getPBEKey(pass);
                         System.out.println("engineLoad -> 2");
