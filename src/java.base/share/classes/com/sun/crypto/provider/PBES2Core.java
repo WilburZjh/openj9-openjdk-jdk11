@@ -66,8 +66,10 @@ abstract class PBES2Core extends CipherSpi {
         throws NoSuchAlgorithmException, NoSuchPaddingException {
 
         this.cipherAlgo = cipherAlgo;
+        System.out.println("PBES2Core --> PBES2Core -> keySize is: " + keySize);
         keyLength = keySize * 8;
         pbeAlgo = "PBEWith" + kdfAlgo + "And" + cipherAlgo + "_" + keyLength;
+        System.out.println("PBES2Core --> PBES2Core -> pbeAlgo is: " + pbeAlgo);
 
         if (cipherAlgo.equals("AES")) {
             blkSize = AESConstants.AES_BLOCK_SIZE;

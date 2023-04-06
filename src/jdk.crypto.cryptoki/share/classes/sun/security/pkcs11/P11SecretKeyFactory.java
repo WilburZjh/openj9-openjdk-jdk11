@@ -156,6 +156,7 @@ final class P11SecretKeyFactory extends SecretKeyFactorySpi {
             }
         }
         if (key instanceof P11Key) {
+            System.out.println("key is an instance of P11Key.");
             P11Key p11Key = (P11Key)key;
             if (p11Key.token == token) {
                 if (extraAttrs != null) {
@@ -166,6 +167,7 @@ final class P11SecretKeyFactory extends SecretKeyFactorySpi {
                         session = token.getObjSession();
                         long newKeyID = token.p11.C_CopyObject(session.id(),
                             p11KeyID, extraAttrs);
+                        System.out.println("key is an instance of P11Key --> p11Key.keyLength is: " + p11Key.keyLength);
                         newP11Key = (P11Key) (P11Key.secretKey(session,
                                 newKeyID, p11Key.algorithm, p11Key.keyLength,
                                 extraAttrs));
@@ -205,8 +207,10 @@ final class P11SecretKeyFactory extends SecretKeyFactorySpi {
     private static P11Key createKey(Token token, byte[] encoded,
             String algorithm, long keyType, CK_ATTRIBUTE[] extraAttrs)
             throws InvalidKeyException {
+        System.out.println("create key --> encoded.length is: " + encoded.length);
         int n = encoded.length << 3;
         int keyLength = n;
+        System.out.println("create key --> keyLength1 is: " + keyLength);
         try {
             switch ((int)keyType) {
                 case (int)CKK_DES:
@@ -251,6 +255,7 @@ final class P11SecretKeyFactory extends SecretKeyFactorySpi {
                     break;
                 case (int)PCKK_SSLMAC:
                 case (int)PCKK_HMAC:
+                    System.out.println("keyType is HMAC.");
                     if (n == 0) {
                         throw new InvalidKeyException
                                 ("MAC keys must not be empty");
@@ -284,8 +289,9 @@ final class P11SecretKeyFactory extends SecretKeyFactorySpi {
                 (O_IMPORT, CKO_SECRET_KEY, keyType, attributes);
             session = token.getObjSession();
             long keyID = token.p11.C_CreateObject(session.id(), attributes);
+            System.out.println("create key --> keyLength2 is: " + keyLength);
             P11Key p11Key = (P11Key)P11Key.secretKey
-                (session, keyID, algorithm, keyLength, attributes);
+                (session, keyID, algorithm, keyLength*2, attributes);
             return p11Key;
         } catch (PKCS11Exception e) {
             throw new InvalidKeyException("Could not create key", e);

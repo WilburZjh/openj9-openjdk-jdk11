@@ -72,12 +72,15 @@ final class PBKDF2KeyImpl implements javax.crypto.interfaces.PBEKey {
     private Mac prf;
 
     private static byte[] getPasswordBytes(char[] passwd) {
+        System.out.println("PBKDF2KeyImpl --> getPasswordBytes --> passwd length is: " + passwd.length);
         Charset utf8 = Charset.forName("UTF-8");
         CharBuffer cb = CharBuffer.wrap(passwd);
         ByteBuffer bb = utf8.encode(cb);
 
         int len = bb.limit();
+        System.out.println("PBKDF2KeyImpl --> getPasswordBytes --> len length is: " + len);
         byte[] passwdBytes = new byte[len];
+        System.out.println("PBKDF2KeyImpl --> getPasswordBytes --> passwdBytes length is: " + passwdBytes.length);
         bb.get(passwdBytes, 0, len);
 
         return passwdBytes;
@@ -169,6 +172,7 @@ final class PBKDF2KeyImpl implements javax.crypto.interfaces.PBEKey {
                 }
                 @Override
                 public byte[] getEncoded() {
+                    System.out.println("PBKDF2KeyImpl password length is: " + password.length);
                     return password;
                 }
                 @Override
