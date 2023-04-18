@@ -167,6 +167,14 @@ abstract class P11Key implements Key, Length {
     // see JCA spec
     public final byte[] getEncoded() {
         byte[] b = getEncodedInternal();
+        if (b == null) {
+            System.out.println("P11Key --> b is null");
+        } else {
+            System.out.println("P11Key --> b is not null");
+            if (b.clone() == null) {
+                System.out.println("P11Key --> b.clone() is null");
+            }
+        }
         return (b == null) ? null : b.clone();
     }
 
@@ -308,26 +316,38 @@ abstract class P11Key implements Key, Length {
             // For each desired attribute, check to see if we have the value
             // available already. If everything is here, we save a native call.
             CK_ATTRIBUTE attr = desiredAttributes[i];
+            System.out.println("P11Key --> getAttributes: " + attr.toString() + ", pValue is: " + attr.pValue);
             for (CK_ATTRIBUTE known : knownAttributes) {
+                System.out.println("P11Key --> knownAttributes: " + known.toString() + ", pValue is: " + known.pValue);
                 if ((attr.type == known.type) && (known.pValue != null)) {
+                    System.out.println("P11Key --> knownAttributes --> (attr.type == known.type) && (known.pValue != null)");
                     attr.pValue = known.pValue;
                     break; // break inner for loop
                 }
             }
+            System.out.println("P11Key --> after knownAttributes --> check attr.pValue: " + attr.pValue);
             if (attr.pValue == null) {
+                System.out.println("P11Key --> after knownAttributes --> check attr.pValue is null. ");
                 // nothing found, need to call C_GetAttributeValue()
                 for (int j = 0; j < i; j++) {
+                    System.out.println("P11Key --> after knownAttributes --> check attr.pValue is null check j: " + desiredAttributes[j] + ", pValue is: " + desiredAttributes[j].pValue);
                     // clear values copied from knownAttributes
                     desiredAttributes[j].pValue = null;
                 }
                 try {
+                    System.out.println("P11Key --> after knownAttributes --> inside try catch.");
                     session.token.p11.C_GetAttributeValue
                             (session.id(), keyID, desiredAttributes);
                 } catch (PKCS11Exception e) {
                     throw new ProviderException(e);
                 }
+                System.out.println("P11Key --> after knownAttributes --> after try catch and before break");
                 break; // break loop, goto return
             }
+        }
+        System.out.println("------------------------");
+        for (int ind = 0; ind < desiredAttributes.length; ind++) {
+            System.out.println("P11Key --> getAttributes: " + desiredAttributes[ind].toString() + ", pValue is: " + desiredAttributes[ind].pValue);
         }
         return desiredAttributes;
     }
@@ -499,34 +519,64 @@ abstract class P11Key implements Key, Length {
             }
         }
         byte[] getEncodedInternal() {
+            System.out.println("P11SecretKey --> getEncodedInternal");
             token.ensureValid();
+            System.out.println("P11SecretKey --> getEncodedInternal --> token.ensureValid()");
             if (getFormat() == null) {
+                System.out.println("P11SecretKey --> getEncodedInternal --> getFormat is null");
                 return null;
             }
+            System.out.println("P11SecretKey --> getEncodedInternal --> start checking b...");
             byte[] b = encoded;
             if (b == null) {
+                System.out.println("P11SecretKey --> getEncodedInternal --> assign encoded to b and b is null");
                 synchronized (this) {
                     b = encoded;
                     if (b == null) {
+                        System.out.println("P11SecretKey --> getEncodedInternal --> synchronzied, assign encoded to b and b is null");
                         Session tempSession = null;
                         long keyID = this.getKeyID();
                         try {
+                            System.out.println("P11SecretKey --> getEncodedInternal --> try 1");
                             tempSession = token.getOpSession();
+                            System.out.println("P11SecretKey --> getEncodedInternal --> try 2");
                             CK_ATTRIBUTE[] attributes = new CK_ATTRIBUTE[] {
                                 new CK_ATTRIBUTE(CKA_VALUE),
                             };
+                            System.out.println("P11SecretKey --> getEncodedInternal --> try 3");
                             token.p11.C_GetAttributeValue
                                     (tempSession.id(), keyID, attributes);
+                            System.out.println("P11SecretKey --> getEncodedInternal --> try 4");
+                            System.out.println("P11SecretKey --> getEncodedInternal --> attributes[0] is: " + attributes[0].toString());
                             b = attributes[0].getByteArray();
+                            System.out.println("P11SecretKey --> getEncodedInternal --> try 5");
+                            if (b == null) {
+                                System.out.println("P11SecretKey --> getEncodedInternal --> try 6");
+                            } else {
+                                System.out.println("P11SecretKey --> getEncodedInternal --> try 7");
+                                for (int j = 0; j < b.length; j++) {
+                                    System.out.print(b[j]);
+                                }
+                                System.out.println();
+                            }
                         } catch (PKCS11Exception e) {
+                            e.printStackTrace();
+                            System.out.println("P11SecretKey --> getEncodedInternal --> try 8");
                             throw new ProviderException(e);
                         } finally {
+                            System.out.println("P11SecretKey --> getEncodedInternal --> try 9");
                             this.releaseKeyID();
+                            System.out.println("P11SecretKey --> getEncodedInternal --> try 10");
                             token.releaseSession(tempSession);
+                            System.out.println("P11SecretKey --> getEncodedInternal --> try 11");
                         }
+                        System.out.println("P11SecretKey --> getEncodedInternal --> 12");
                         encoded = b;
                     }
                 }
+            }
+            if (b == null) {
+                System.out.println("P11SecretKey --> getEncodedInternal --> after all check, b is still null");
             }
             return b;
         }
