@@ -337,11 +337,29 @@ abstract class P11Key implements Key, Length {
 
     static SecretKey secretKey(Session session, long keyID, String algorithm,
             int keyLength, CK_ATTRIBUTE[] attributes) {
+        boolean useForWrapping = false;
+        if (attributes == null) {
+            useForWrapping = true;
+        }
         attributes = getAttributes(session, keyID, attributes, new CK_ATTRIBUTE[] {
             new CK_ATTRIBUTE(CKA_TOKEN),
             new CK_ATTRIBUTE(CKA_SENSITIVE),
             new CK_ATTRIBUTE(CKA_EXTRACTABLE),
         });
+        if ((SunPKCS11.mysunpkcs11 != null) && "AES".equals(algorithm) && !useForWrapping) {
+            if (attributes[0].getBoolean() || attributes[1].getBoolean() || (attributes[2].getBoolean() == false)) {
+                try {
+                    byte[] key = SunPKCS11.mysunpkcs11.exportKey(session.id(), attributes, keyID);
+                    SecretKey aesSecretKey = new SecretKeySpec(key, "AES");
+                    return new P11SecretKeyFIPS(session, keyID, algorithm, keyLength, attributes, aesSecretKey);
+                } catch (PKCS11Exception e) {
+                    // Attempt failed, create a P11PrivateKey object.
+                    if (debug != null) {
+                        debug.println("Attempt failed, creating a SecretKey object for AES");
+                    }
+                }
+            }
+        }
         return new P11SecretKey(session, keyID, algorithm, keyLength,
                 attributes);
     }
@@ -389,9 +407,6 @@ abstract class P11Key implements Key, Length {
         });
         if ((SunPKCS11.mysunpkcs11 != null) && "RSA".equals(algorithm)) {
             if (attributes[0].getBoolean() || attributes[1].getBoolean() || (attributes[2].getBoolean() == false)) {
-                System.out.println("attributes[0].getBoolean() is: " + String.valueOf(attributes[0].getBoolean()));
-                System.out.println("attributes[1].getBoolean() is: " + String.valueOf(attributes[1].getBoolean()));
-                System.out.println("attributes[2].getBoolean() is: " + String.valueOf(attributes[2].getBoolean()));
                 try {
                     byte[] key = SunPKCS11.mysunpkcs11.exportKey(session.id(), attributes, keyID);
                     RSAPrivateKey rsaPrivKey = RSAPrivateCrtKeyImpl.newKey(key);
@@ -493,6 +508,28 @@ abstract class P11Key implements Key, Length {
             token.ensureValid();
             return null;
         }
+    }
+
+    private static class P11SecretKeyFIPS extends P11Key implements SecretKey {
+        private static final long serialVersionUID = -7828241727014329084L;
+        private final SecretKey key;
+
+        P11SecretKeyFIPS(Session session, long keyID, String algorithm,
+                int keyLength, CK_ATTRIBUTE[] attributes, SecretKey key) {
+            super(SECRET, session, keyID, algorithm, keyLength, attributes);
+            this.key = key;
+        }
+
+        @Override
+        public String getFormat() {
+            return "RAW";
+        }
+
+        @Override
+        synchronized byte[] getEncodedInternal() {
+            return key.getEncoded();
+        }
+
     }
 
     private static class P11SecretKey extends P11Key implements SecretKey {
