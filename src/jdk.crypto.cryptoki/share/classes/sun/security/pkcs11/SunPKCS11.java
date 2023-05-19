@@ -121,6 +121,8 @@ public final class SunPKCS11 extends AuthProvider {
     // FIPS mode.
     static SunPKCS11 mysunpkcs11;
 
+    static boolean isExportWrapKey = false;
+
     Token getToken() {
         return token;
     }
@@ -506,7 +508,16 @@ public final class SunPKCS11 extends AuthProvider {
 
         try {
             long genKeyId = token.p11.C_GenerateKey(wrapKeyGenSession.id(), new CK_MECHANISM(CKM_AES_KEY_GEN), wrapKeyAttributes);
+            isExportWrapKey = true;
             wrapKey = (P11Key)P11Key.secretKey(wrapKeyGenSession, genKeyId, "AES", 256 >> 3, null);
+            isExportWrapKey = false;
+            // wrapKey = (P11Key)P11Key.secretKey(wrapKeyGenSession, genKeyId, "AES", 256 >> 3, new CK_ATTRIBUTE[] {new CK_ATTRIBUTE(CKA_WRAP, true)});
+            // CK_ATTRIBUTE[] tmpAttributes = P11Key.getAttributes(wrapKeyGenSession, genKeyId, null, new CK_ATTRIBUTE[] {
+            //     new CK_ATTRIBUTE(CKA_TOKEN),
+            //     new CK_ATTRIBUTE(CKA_SENSITIVE),
+            //     new CK_ATTRIBUTE(CKA_EXTRACTABLE),
+            // });
+            // wrapKey = new P11Key.P11SecretKey(wrapKeyGenSession, genKeyId, "AES", 256 >> 3, tmpAttributes);
         } catch (PKCS11Exception e) {
             throw e;
         } finally {

@@ -337,25 +337,30 @@ abstract class P11Key implements Key, Length {
 
     static SecretKey secretKey(Session session, long keyID, String algorithm,
             int keyLength, CK_ATTRIBUTE[] attributes) {
-        boolean useForWrapping = false;
-        if (attributes == null) {
-            useForWrapping = true;
-        }
+        // boolean containWrapKeyAttributes = false;
+        // for (CK_ATTRIBUTE attr : attributes) {
+        //     if (attr.type == CKA_WRAP && attr.getBoolean()) {
+        //         System.out.println("P11Key -> secretKey -> attribute contains CKA_WRAP.");
+        //         containWrapKeyAttributes = true;
+        //     }
+        // }
+
         attributes = getAttributes(session, keyID, attributes, new CK_ATTRIBUTE[] {
             new CK_ATTRIBUTE(CKA_TOKEN),
             new CK_ATTRIBUTE(CKA_SENSITIVE),
             new CK_ATTRIBUTE(CKA_EXTRACTABLE),
         });
-        if ((SunPKCS11.mysunpkcs11 != null) && "AES".equals(algorithm) && !useForWrapping) {
+
+        if ((SunPKCS11.mysunpkcs11 != null) && (!SunPKCS11.isExportWrapKey) && ("AES".equals(algorithm) || "TripleDES".equals(algorithm))) {
             if (attributes[0].getBoolean() || attributes[1].getBoolean() || (attributes[2].getBoolean() == false)) {
                 try {
                     byte[] key = SunPKCS11.mysunpkcs11.exportKey(session.id(), attributes, keyID);
-                    SecretKey aesSecretKey = new SecretKeySpec(key, "AES");
+                    SecretKey aesSecretKey = new SecretKeySpec(key, algorithm);
                     return new P11SecretKeyFIPS(session, keyID, algorithm, keyLength, attributes, aesSecretKey);
                 } catch (PKCS11Exception e) {
-                    // Attempt failed, create a P11PrivateKey object.
+                    // Attempt failed, create a P11SecretKey object.
                     if (debug != null) {
-                        debug.println("Attempt failed, creating a SecretKey object for AES");
+                        debug.println("Attempt failed, creating a SecretKey object for " + algorithm);
                     }
                 }
             }
