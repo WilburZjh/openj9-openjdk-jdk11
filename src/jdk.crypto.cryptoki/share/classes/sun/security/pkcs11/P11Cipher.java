@@ -39,6 +39,8 @@ import sun.security.jca.JCAUtil;
 import sun.security.pkcs11.wrapper.*;
 import static sun.security.pkcs11.wrapper.PKCS11Constants.*;
 
+import openj9.internal.security.RestrictedSecurity;
+
 /**
  * Cipher implementation class. This class currently supports
  * DES, DESede, AES, ARCFOUR, and Blowfish.
@@ -292,9 +294,18 @@ final class P11Cipher extends CipherSpi {
         }
         IvParameterSpec ivSpec = new IvParameterSpec(iv);
         try {
-            AlgorithmParameters params =
-                    AlgorithmParameters.getInstance(keyAlgorithm,
-                    P11Util.getSunJceProvider());
+            System.out.println("keyAlgorithm is: " + keyAlgorithm);
+            AlgorithmParameters params;
+            if (RestrictedSecurity.isFIPSEnabled()) {
+                System.out.println("P11Util.getSunPkcs11Provider() returns: " + P11Util.getSunPkcs11Provider().getName());
+                params =
+                        AlgorithmParameters.getInstance(keyAlgorithm,
+                        P11Util.getSunPkcs11Provider());
+            } else {
+                params =
+                        AlgorithmParameters.getInstance(keyAlgorithm,
+                        P11Util.getSunJceProvider());
+            }
             params.init(ivSpec);
             return params;
         } catch (GeneralSecurityException e) {

@@ -28,6 +28,8 @@ package sun.security.pkcs11;
 import java.math.BigInteger;
 import java.security.*;
 
+import openj9.internal.security.RestrictedSecurity;
+
 /**
  * Collection of static utility methods.
  *
@@ -38,7 +40,7 @@ public final class P11Util {
 
     private static Object LOCK = new Object();
 
-    private static volatile Provider sun, sunRsaSign, sunJce;
+    private static volatile Provider sun, sunRsaSign, sunJce, sunPkcs11;
 
     private P11Util() {
         // empty
@@ -75,6 +77,23 @@ public final class P11Util {
                 p = getProvider
                     (sunJce, "SunJCE", "com.sun.crypto.provider.SunJCE");
                 sunJce = p;
+            }
+        }
+        return p;
+    }
+
+    static Provider getSunPkcs11Provider() {
+        Provider p = sunPkcs11;
+        if (p == null) {
+            synchronized (LOCK) {
+                if (RestrictedSecurity.isFIPSEnabled()) {
+                    p = getProvider
+                        (sunPkcs11, "SunPKCS11-NSS-FIPS", "sun.security.pkcs11.SunPKCS11");
+                } else {
+                    p = getProvider
+                        (sunPkcs11, "SunPKCS11", "sun.security.pkcs11.SunPKCS11");
+                }
+                sunPkcs11 = p;
             }
         }
         return p;
