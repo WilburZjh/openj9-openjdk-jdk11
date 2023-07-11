@@ -1684,6 +1684,11 @@ public class KeyStore {
     public static final KeyStore getInstance(File file, char[] password)
         throws KeyStoreException, IOException, NoSuchAlgorithmException,
             CertificateException {
+        if(password == null) {
+            System.out.println("KeyStore.java -> getInstance() -> password is null");
+        } else {
+            System.out.println("KeyStore.java -> getInstance() -> password is: " + new String(password));
+        }
         return getInstance(file, password, null, true);
     }
 
@@ -1765,25 +1770,29 @@ public class KeyStore {
             new DataInputStream(
                 new BufferedInputStream(
                     new FileInputStream(file)))) {
-
+            System.out.println("KeyStore.java -> getInstance() -> 1");
             dataStream.mark(Integer.MAX_VALUE);
-
+            System.out.println("KeyStore.java -> getInstance() -> 2");
             // Detect the keystore type
             for (String type : Security.getAlgorithms("KeyStore")) {
                 Object[] objs = null;
-
+                System.out.println("KeyStore.java -> getInstance() -> 3");
                 try {
+                    System.out.println("KeyStore.java -> getInstance() -> 4");
                     objs = Security.getImpl(type, "KeyStore", (String)null);
-
+                    System.out.println("KeyStore.java -> getInstance() -> 5");
                     KeyStoreSpi impl = (KeyStoreSpi)objs[0];
+                    System.out.println("KeyStore.java -> getInstance() -> 6");
                     if (impl.engineProbe(dataStream)) {
-
+                        System.out.println("KeyStore.java -> getInstance() -> 7");
                         if (kdebug != null) {
+                            System.out.println("KeyStore.java -> getInstance() -> 8");
                             kdebug.println(type + " keystore detected: " +
                                 file);
                         }
-
+                        System.out.println("KeyStore.java -> getInstance() -> 9");
                         keystore = new KeyStore(impl, (Provider)objs[1], type);
+                        System.out.println("KeyStore.java -> getInstance() -> 10");
                         break;
                     }
                 } catch (NoSuchAlgorithmException | NoSuchProviderException e) {
@@ -1799,20 +1808,28 @@ public class KeyStore {
                 }
                 dataStream.reset(); // prepare the stream for the next probe
             }
-
+            System.out.println("KeyStore.java -> getInstance() -> 11");
             // Load the keystore data
             if (keystore != null) {
+                System.out.println("KeyStore.java -> getInstance() -> 12");
                 dataStream.reset(); // prepare the stream for loading
+                System.out.println("KeyStore.java -> getInstance() -> 13");
                 if (hasPassword) {
+                    System.out.println("KeyStore.java -> getInstance() -> 14");
                     keystore.load(dataStream, password);
+                    System.out.println("KeyStore.java -> getInstance() -> 15");
                 } else {
+                    System.out.println("KeyStore.java -> getInstance() -> 16");
                     keystore.keyStoreSpi.engineLoad(dataStream, param);
+                    System.out.println("KeyStore.java -> getInstance() -> 17");
                     keystore.initialized = true;
+                    System.out.println("KeyStore.java -> getInstance() -> 18");
                 }
+                System.out.println("KeyStore.java -> getInstance() -> 19");
                 return keystore;
             }
         }
-
+        System.out.println("KeyStore.java -> getInstance() -> 20");
         throw new KeyStoreException("Unrecognized keystore format. "
                 + "Please load it with a specified type");
     }

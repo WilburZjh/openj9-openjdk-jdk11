@@ -123,6 +123,7 @@ public class KeyStoreUtil {
      */
     public static String getCacerts() {
         String sep = File.separator;
+        System.out.println("KeyStoreUtil.java -> getCacerts");
         return System.getProperty("java.home") + sep
                 + "lib" + sep + "security" + sep
                 + "cacerts";
