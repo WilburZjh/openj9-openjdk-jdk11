@@ -235,12 +235,14 @@ public final class Des {
         long key = 0;
         long octet, octet1, octet2 = 0;
         byte[] cbytes = null;
-
+        System.out.println("Des.java --> char_to_key --> ");
         // Convert password to byte array
         try {
             if (CHARSET == null) {
+                System.out.println("Des.java --> char_to_key --> CHARSET is null");
                 cbytes = (new String(passwdChars)).getBytes();
             } else {
+                System.out.println("Des.java --> char_to_key --> CHARSET is not null");
                 cbytes = (new String(passwdChars)).getBytes(CHARSET);
             }
         } catch (Exception e) {
@@ -278,13 +280,18 @@ public final class Des {
         }
 
         newkey = des_cksum(long2octet(key), passwdBytes, long2octet(key));
+        if(newkey == null) {
+            System.out.println("Des.java --> char_to_key() --> newKey is null");
+        }
         key = octet2long(set_parity(newkey));
+        System.out.println("Des.java --> char_to_key() --> after set_parity(newKey), the key is: " + key);
         if (bad_key(key)) {
+            System.out.println("Des.java --> char_to_key() --> after set_parity(newKey), the key is a bad key");
             byte [] temp = long2octet(key);
             temp[7] ^= 0xf0;
             key = octet2long(temp);
         }
-
+        System.out.println("Des.java --> char_to_key() --> after set_parity(newKey) and bad_Key(key), the key is: " + key);
         // clear-up sensitive information
         if (cbytes != null) {
             Arrays.fill(cbytes, 0, cbytes.length, (byte) 0);
@@ -312,6 +319,7 @@ public final class Des {
         byte[] result = new byte[8];
         try{
             cipher = Cipher.getInstance("DES/CBC/NoPadding");
+            System.out.println("Des.java --> des_cksum() --> cipher.getProvider(): " + cipher.getProvider().getName());
         } catch (Exception e) {
             KrbCryptoException ke = new KrbCryptoException("JCE provider may not be installed. "
                                                            + e.getMessage());
@@ -322,12 +330,16 @@ public final class Des {
         SecretKeySpec skSpec = new SecretKeySpec(key, "DES");
         try {
             SecretKeyFactory skf = SecretKeyFactory.getInstance("DES");
+            System.out.println("Des.java --> des_cksum() --> SecretKeyFactory.getProvider(): " + skf.getProvider().getName());
             // SecretKey sk = skf.generateSecret(skSpec);
             SecretKey sk = (SecretKey) skSpec;
             cipher.init(Cipher.ENCRYPT_MODE, sk, params);
             for (int i = 0; i < msg.length / 8; i++) {
                 result = cipher.doFinal(msg, i * 8, 8);
                 cipher.init(Cipher.ENCRYPT_MODE, sk, (new IvParameterSpec(result)));
+            }
+            if (result == null) {
+                System.out.println("Des.java --> des_cksum() --> result is null ");
             }
         }
         catch (GeneralSecurityException e) {
@@ -363,6 +375,7 @@ public final class Des {
     // Caller is responsible for clearing password
     public static byte[] string_to_key_bytes(char[] passwdChars)
         throws KrbCryptoException {
+        System.out.println("Des.java --> string_to_key_bytes --> passwdChars: " + new String(passwdChars));
         return long2octet(char_to_key(passwdChars));
     }
 }

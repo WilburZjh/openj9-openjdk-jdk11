@@ -182,6 +182,7 @@ public class EncryptionKey
         EncryptionKey[] encKeys = new EncryptionKey[etypes.length];
         for (int i = 0; i < etypes.length; i++) {
             if (EType.isSupported(etypes[i])) {
+                System.out.println("EncryptionKey.java --> acquireSecretKeys --> etypes is: " + etypes[i]);
                 encKeys[i] = new EncryptionKey(
                         stringToKey(password, salt, null, etypes[i]),
                         etypes[i], null);
@@ -205,8 +206,9 @@ public class EncryptionKey
             this.keyValue = new byte[keyValue.length];
             System.arraycopy(keyValue, 0, this.keyValue, 0, keyValue.length);
         } else {
-            throw new IllegalArgumentException("EncryptionKey: " +
-                                               "Key bytes cannot be null!");
+            // throw new IllegalArgumentException("EncryptionKey: " +
+            //                                    "Key bytes cannot be null!");
+            throw new Exception("Exception", null);
         }
         this.keyType = keyType;
         this.kvno = kvno;
@@ -233,29 +235,36 @@ public class EncryptionKey
         System.arraycopy(password, 0, pwsalt, 0, password.length);
         System.arraycopy(slt, 0, pwsalt, password.length, slt.length);
         Arrays.fill(slt, '0');
-
+        System.out.println("EncryptionKey.java --> stringToKey --> keyType is: " + keyType);
         try {
             switch (keyType) {
                 case EncryptedData.ETYPE_DES_CBC_CRC:
                 case EncryptedData.ETYPE_DES_CBC_MD5:
-                        return Des.string_to_key_bytes(pwsalt);
+                    System.out.println("EncryptionKey.java --> stringToKey --> keyType is: " + "ETYPE_DES_CBC_CRC/ETYPE_DES_CBC_MD5");
+                    return Des.string_to_key_bytes(pwsalt);
 
                 case EncryptedData.ETYPE_DES3_CBC_HMAC_SHA1_KD:
-                        return Des3.stringToKey(pwsalt);
+                    System.out.println("EncryptionKey.java --> stringToKey --> keyType is: " + "ETYPE_DES3_CBC_HMAC_SHA1_KD");
+                    return Des3.stringToKey(pwsalt);
 
                 case EncryptedData.ETYPE_ARCFOUR_HMAC:
-                        return ArcFourHmac.stringToKey(password);
+                    System.out.println("EncryptionKey.java --> stringToKey --> keyType is: " + "ETYPE_ARCFOUR_HMAC");
+                    return ArcFourHmac.stringToKey(password);
 
                 case EncryptedData.ETYPE_AES128_CTS_HMAC_SHA1_96:
-                        return Aes128.stringToKey(password, salt, s2kparams);
+                    System.out.println("EncryptionKey.java --> stringToKey --> keyType is: " + "ETYPE_AES128_CTS_HMAC_SHA1_96");
+                    return Aes128.stringToKey(password, salt, s2kparams);
 
                 case EncryptedData.ETYPE_AES256_CTS_HMAC_SHA1_96:
-                        return Aes256.stringToKey(password, salt, s2kparams);
+                    System.out.println("EncryptionKey.java --> stringToKey --> keyType is: " + "ETYPE_AES256_CTS_HMAC_SHA1_96");
+                    return Aes256.stringToKey(password, salt, s2kparams);
 
                 case EncryptedData.ETYPE_AES128_CTS_HMAC_SHA256_128:
-                        return Aes128Sha2.stringToKey(password, salt, s2kparams);
+                    System.out.println("EncryptionKey.java --> stringToKey --> keyType is: " + "ETYPE_AES128_CTS_HMAC_SHA256_128");
+                    return Aes128Sha2.stringToKey(password, salt, s2kparams);
 
                 case EncryptedData.ETYPE_AES256_CTS_HMAC_SHA384_192:
+                    System.out.println("EncryptionKey.java --> stringToKey --> keyType is: " + "ETYPE_AES256_CTS_HMAC_SHA384_192");
                     return Aes256Sha2.stringToKey(password, salt, s2kparams);
 
                 default:

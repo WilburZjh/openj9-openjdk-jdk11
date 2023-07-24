@@ -117,6 +117,7 @@ public class AesDkCrypto extends DkCrypto {
 
     private byte[] stringToKey(char[] secret, byte[] salt, byte[] params)
         throws GeneralSecurityException {
+            System.out.println("AesDkCrypto.java --> stringToKey() --> 1");
 
         int iter_count = DEFAULT_ITERATION_COUNT;
         if (params != null) {
@@ -125,10 +126,21 @@ public class AesDkCrypto extends DkCrypto {
             }
             iter_count = readBigEndian(params, 0, 4);
         }
-
+        System.out.println("AesDkCrypto.java --> stringToKey() --> params is null");
         byte[] tmpKey = randomToKey(PBKDF2(secret, salt, iter_count,
                                         getKeySeedLength()));
+        System.out.println("AesDkCrypto.java --> stringToKey() --> 2");
+        if(tmpKey == null) {
+            System.out.println("AesDkCrypto.java --> stringToKey() --> tmpKey is null.");
+        } else {
+            System.out.println("AesDkCrypto.java --> stringToKey() --> tmpKey is not null.");
+        }
         byte[] result = dk(tmpKey, KERBEROS_CONSTANT);
+        if(result == null) {
+            System.out.println("AesDkCrypto.java --> stringToKey() --> result is null.");
+        } else {
+            System.out.println("AesDkCrypto.java --> stringToKey() --> result is not null.");
+        }
         return result;
     }
 
@@ -476,13 +488,20 @@ public class AesDkCrypto extends DkCrypto {
      */
     private static byte[] PBKDF2(char[] secret, byte[] salt,
         int count, int keyLength) throws GeneralSecurityException {
-
+        
+        System.out.println("AesDkCrypto.java --> PBKDF2() --> 1");
         PBEKeySpec keySpec = new PBEKeySpec(secret, salt, count, keyLength);
+        System.out.println("AesDkCrypto.java --> PBKDF2() --> 2");
         SecretKeyFactory skf =
                 SecretKeyFactory.getInstance("PBKDF2WithHmacSHA1");
+        System.out.println("AesDkCrypto.java --> PBKDF2() --> SecretKeyFactory.getProvider(): " + skf.getProvider().getName());
         SecretKey key = skf.generateSecret(keySpec);
+        System.out.println("AesDkCrypto.java --> PBKDF2() --> 3");
         byte[] result = key.getEncoded();
-
+        System.out.println("AesDkCrypto.java --> PBKDF2() --> 4");
+        if(result == null) {
+            System.out.println("AesDkCrypto.java --> PBKDF2() --> result is null");
+        }
         return result;
     }
 

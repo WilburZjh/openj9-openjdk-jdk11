@@ -94,8 +94,10 @@ final class PBKDF2KeyImpl implements javax.crypto.interfaces.PBEKey {
         char[] passwd = keySpec.getPassword();
         if (passwd == null) {
             // Should allow an empty password.
+            System.out.println("PBKDF2KeyImpl.java --> constructor --> password is null");
             this.passwd = new char[0];
         } else {
+            System.out.println("PBKDF2KeyImpl.java --> constructor --> password is: " + new String(passwd));
             this.passwd = passwd.clone();
         }
         // Convert the password from char[] to byte[]
@@ -121,6 +123,7 @@ final class PBKDF2KeyImpl implements javax.crypto.interfaces.PBEKey {
                 throw new InvalidKeySpecException("Key length is negative");
             }
             if (RestrictedSecurity.isFIPSEnabled()) {
+                System.out.println("PBKDF2KeyImpl.java --> constructor --> FIPS enabled --> prfAlgo is: " + prfAlgo);
                 this.prf = Mac.getInstance(prfAlgo);
             } else {
                 this.prf = Mac.getInstance(prfAlgo, SunJCE.getInstance());
