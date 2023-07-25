@@ -422,24 +422,32 @@ public class Sasl {
             Provider[] provs = Security.getProviders(type + "." + mechName);
             if (provs != null) {
                 for (Provider p : provs) {
+                    System.out.println("Sasl.java --> createSaslClient() --> provs is not null --> p is: " + p.getName() + ", mechName is: " + mechName);
                     service = p.getService(type, mechName);
                     if (service == null) {
+                        System.out.println("Sasl.java --> createSaslClient() --> provs is not null --> but service is null.");
                         // no such service exists
                         continue;
                     }
-
+                    System.out.println("Sasl.java --> createSaslClient() --> provs is not null --> service is not null.");
                     fac = (SaslClientFactory) loadFactory(service);
+                    System.out.println("Sasl.java --> createSaslClient() --> 1");
                     if (fac != null) {
+                        System.out.println("Sasl.java --> createSaslClient() --> 2");
                         mech = fac.createSaslClient(
                             new String[]{mechanisms[i]}, authorizationId,
                             protocol, serverName, props, cbh);
+                        System.out.println("Sasl.java --> createSaslClient() --> 3");
                         if (mech != null) {
+                            System.out.println("Sasl.java --> createSaslClient() --> 4");
                             return mech;
                         }
                     }
                 }
             }
+            System.out.println("Sasl.java --> createSaslClient() --> 5");
         }
+        System.out.println("Sasl.java --> createSaslClient() --> provs is null");
         return null;
     }
 
@@ -570,21 +578,30 @@ public class Sasl {
         Provider[] provs = Security.getProviders(type + "." + mechanism);
         if (provs != null) {
             for (Provider p : provs) {
+                System.out.println("Sasl.java --> createSaslServer() --> provs is not null --> p is: " + p.getName() + ", mechName is: " + mechanism);
                 service = p.getService(type, mechanism);
                 if (service == null) {
+                    System.out.println("Sasl.java --> createSaslServer() --> provs is not null --> but service is null.");
                     throw new SaslException("Provider does not support " +
                         mechanism + " " + type);
                 }
+                System.out.println("Sasl.java --> createSaslServer() --> provs is not null --> service is not null.");
                 fac = (SaslServerFactory) loadFactory(service);
+                System.out.println("Sasl.java --> createSaslServer() --> 1");
                 if (fac != null) {
+                    System.out.println("Sasl.java --> createSaslServer() --> 2");
                     mech = fac.createSaslServer(
                         mechanism, protocol, serverName, props, cbh);
+                    System.out.println("Sasl.java --> createSaslServer() --> 3");
                     if (mech != null) {
+                        System.out.println("Sasl.java --> createSaslServer() --> 4");
                         return mech;
                     }
                 }
             }
+            System.out.println("Sasl.java --> createSaslServer() --> 5");
         }
+        System.out.println("Sasl.java --> createSaslServer() --> provs is null");
         return null;
     }
 
