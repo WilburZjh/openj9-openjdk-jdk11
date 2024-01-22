@@ -283,8 +283,7 @@ public class PKCS11 {
                     if (t instanceof PKCS11Exception) {
                         throw (PKCS11Exception)t;
                     }
-                    throw new PKCS11Exception(CKR_GENERAL_ERROR,
-                            t.getMessage());
+                    throw new PKCS11Exception(CKR_GENERAL_ERROR);
                 }
             }
             super.C_GetAttributeValue(hSession, hObject, pTemplate);
@@ -1950,8 +1949,7 @@ static class SynchronizedPKCS11 extends PKCS11 {
                 if (t instanceof PKCS11Exception) {
                     throw (PKCS11Exception)t;
                 }
-                throw new PKCS11Exception(CKR_GENERAL_ERROR,
-                        t.getMessage());
+                throw new PKCS11Exception(CKR_GENERAL_ERROR);
             }
         }
         super.C_GetAttributeValue(hSession, hObject, pTemplate);
